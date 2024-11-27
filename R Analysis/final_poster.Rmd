@@ -1,0 +1,809 @@
+---
+title: "Animal Behavior Analysis: Comparing Healthy and Vestibular Syndrome Rats"
+output: html_notebook
+---
+
+# Background
+
+The study of animal behavior under controlled experimental conditions offers a unique window to explore how physical variables can reveal crucial aspects of adaptation and behavioral phenomena under different conditions. This approach allows us to analyze how biological alterations, such as those of the vestibular system, affect both locomotion dynamics and environmental sensing, as well as behavioral adaptation in static and dynamic environments.
+
+Physical variables, such as displacement velocity, trajectory patterns, and efficiency in performing temporo-spatial learning tasks (i.e., when and where a resource is delivered), offer a precise and quantitative measure of how subjects adapt their behavior under specific biological conditions. This multidimensional approach not only broadens our understanding of the mechanisms underlying behavioral adaptations and phenomena but could also have significant implications for developing therapeutic interventions and improving quality of life in cases of neurological disorders.
+
+In this context, our study explores the use of physical variables to identify distinctive patterns of behavior between healthy subjects and those with vestibular syndrome (VS). This approach provides a more comprehensive view of the complexities in the integration of locomotion and spatio-temporal learning.
+
+## Objective
+
+To compare behavioral dynamics in healthy Wistar rats and rats with vestibular syndrome by analyzing associated physical variables, such as displacement velocity, trajectory patterns, and location density, under reinforcement programs contingent on the organisms' displacement (FD/VD 100cm), using an expanded experimental chamber for water delivery.
+
+# Method
+
+## Subjects
+
+Four 4-5 month old female Wistar rats, experimentally naive, two healthy (H) and two with vestibular syndrome (VS), water-deprived for 23 hours.
+
+## Apparatus
+
+Functional Space Densification Apparatus (FSDA), 100 x 100 x 40 cm with uniform black walls and floor.
+
+## Procedure
+
+Subjects were grouped according to their biological condition: H rats (R1;R2) and VS rats (R3;R4). All subjects were exposed to two phases, presented in random sequence: VD (Variable Distance) and FD (Fixed Distance). In the VD phase, water (3ml, available for 3") was delivered each time the subject met a previously established distance criterion, which varied reaching an average of 100cm at the end of the session. The FD phase was similar, but water was delivered under a fixed criterion every time the subject traveled 100cm. The continuous displacement of the subjects was recorded through the coordinates (X,Y) of the center of mass, at a frequency of 5 Hz.
+
+# Script setup
+
+```{r}
+# Load required libraries
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+library(zoo)
+library(viridis)
+library(entropy)
+library(fractaldim)
+library(stats)
+library(purrr)
+library(data.table)
+library(rayshader)
+library(dplyr)
+
+# Function to read and preprocess data
+read_and_preprocess <- function(file_path) {
+  data <- fread(file_path, skip = 12)
+  
+  # Ensure column names exist and select them
+  if(all(c("Time", "X", "Y") %in% names(data))) {
+    data <- data[, .(Time, X, Y)]
+  } else {
+    stop("Required columns (Time, X, Y) not found in the data")
+  }
+  
+  # Add additional columns
+  data[, `:=`(
+    file = basename(file_path),
+    rat = substr(basename(file_path), 1, 2),
+    condition = ifelse(grepl("DV", basename(file_path)), "DV", "DF"),
+    session = as.numeric(gsub(".*s(\\d+).*", "\\1", basename(file_path))),
+    health_status = ifelse(grepl("Síndrome Vestibular", file_path), "Enferma", "Sana")
+  )]
+  
+  return(data)
+}
+
+# Read all files from S3 and S4 directories (healthy rats)
+s3_files <- list.files("/home/thermostatic/Desktop/Ratas/datos/Sanas/S3", full.names = TRUE, pattern = "*.csv")
+s4_files <- list.files("/home/thermostatic/Desktop/Ratas/datos/Sanas/S4", full.names = TRUE, pattern = "*.csv")
+
+# Read all files from S2 and S5 directories (sick rats)
+s2_files <- list.files("/home/thermostatic/Desktop/Ratas/datos/Síndrome Vestibular/S2", full.names = TRUE, pattern = "*.csv")
+s5_files <- list.files("/home/thermostatic/Desktop/Ratas/datos/Síndrome Vestibular/S5", full.names = TRUE, pattern = "*.csv")
+
+all_files <- c(s3_files, s4_files, s2_files, s5_files)
+
+# Use tryCatch to handle potential errors
+all_data <- tryCatch({
+  rbindlist(lapply(all_files, read_and_preprocess), fill = TRUE)
+}, error = function(e) {
+  print(paste("Error:", e$message))
+  return(NULL)
+})
+
+# Check if data was loaded successfully before proceeding
+if (!is.null(all_data)) {
+  # Calculate velocity and acceleration
+  all_data[, c("delta_t", "Velocity_X", "Velocity_Y", "Velocity_Magnitude", 
+               "Acceleration_X", "Acceleration_Y", "Acceleration_Magnitude") := {
+    delta_t <- Time - shift(Time)
+    Velocity_X <- (X - shift(X)) / delta_t
+    Velocity_Y <- (Y - shift(Y)) / delta_t
+    Velocity_Magnitude <- sqrt(Velocity_X^2 + Velocity_Y^2)
+    Acceleration_X <- (Velocity_X - shift(Velocity_X)) / delta_t
+    Acceleration_Y <- (Velocity_Y - shift(Velocity_Y)) / delta_t
+    Acceleration_Magnitude <- sqrt(Acceleration_X^2 + Acceleration_Y^2)
+    list(delta_t, Velocity_X, Velocity_Y, Velocity_Magnitude, 
+         Acceleration_X, Acceleration_Y, Acceleration_Magnitude)
+  }, by = .(rat, condition, session, health_status)]
+}
+```
+
+```{r}
+# Define the color palette
+color_palette <- c("#c16e6d", "#a1493d", "#1a1a22", "#404064", "#563d5b")
+
+# Function to remove outliers
+remove_outliers <- function(x, k = 1.5) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- k * IQR(x, na.rm = TRUE)
+  y <- x
+  y[x < (qnt[1] - H)] <- NA
+  y[x > (qnt[2] + H)] <- NA
+  return(y)
+}
+```
+
+```{r}
+# Apply remove_outliers to velocity and acceleration data
+all_data[, `:=`(
+  Velocity_Magnitude = remove_outliers(Velocity_Magnitude),
+  Acceleration_Magnitude = remove_outliers(Acceleration_Magnitude)
+)]
+```
+
+```{r}
+# Function to plot velocity distribution
+plot_velocity_distribution <- function(data) {
+  ggplot(data, aes(x = Velocity_Magnitude, fill = health_status)) +
+    geom_density(alpha = 0.7) +
+    facet_grid(condition ~ ., scales = "free_y") +
+    scale_fill_manual(values = color_palette[c(1, 4)]) +
+    labs(title = "Distribución de magnitudes de las velocidades",
+         x = "Magnitud de la velocidad (cm/s)",
+         y = "Densidad",
+         fill = "Estado de salud") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold")
+    )
+}
+```
+
+```{r}
+plot_velocity_distribution(all_data)
+ggsave("velocity_distribution_with_sick_rats_es.png", width = 20, height = 16, dpi = 300)
+```
+
+```{r}
+# Function to plot turning angle distribution
+plot_turning_angle_distribution <- function(data) {
+  data[, turning_angle := atan2(Velocity_Y * shift(Velocity_X) - Velocity_X * shift(Velocity_Y),
+                                Velocity_X * shift(Velocity_X) + Velocity_Y * shift(Velocity_Y)) * (180 / pi),
+       by = .(rat, condition, session, health_status)]
+  
+  data[, turning_angle := remove_outliers(turning_angle), 
+       by = .(rat, condition, session, health_status)]
+  
+  ggplot(data, aes(x = turning_angle, fill = health_status)) +
+    geom_density(alpha = 0.7) +
+    facet_grid(condition ~ ., scales = "free_y") +
+    scale_fill_manual(values = color_palette[c(1, 4)]) +
+    labs(title = "Distribución de ángulo de giro",
+         x = "Ángulo de giro (grados)",
+         y = "Densidad",
+         fill = "Estado de salud") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold")
+    ) +
+    coord_cartesian(xlim = c(-180, 180))
+}
+```
+
+```{r}
+plot_turning_angle_distribution(all_data)
+ggsave("turning_angle_distribution_with_sick_rats_es.png", width = 20, height = 16, dpi = 300)
+```
+```{r}
+# Filter out NA values from Velocity_Magnitude
+velocity_data <- all_data[!is.na(Velocity_Magnitude)]
+```
+```{r}
+fit_distributions <- function(data) {
+  # Fit distributions
+  fit_norm <- fitdist(data$Velocity_Magnitude, "norm")
+  fit_lognorm <- fitdist(data$Velocity_Magnitude, "lnorm")
+  fit_gamma <- fitdist(data$Velocity_Magnitude, "gamma")
+  fit_weibull <- fitdist(data$Velocity_Magnitude, "weibull")
+  
+  # List of fitted distributions
+  fits <- list(normal = fit_norm,
+               lognormal = fit_lognorm,
+               gamma = fit_gamma,
+               weibull = fit_weibull)
+  
+  # Compare distributions
+  gof_stats <- gofstat(fits)
+  
+  return(list(fits = fits, gof = gof_stats))
+}
+```
+```{r}
+# Apply the function to each combination of health_status and condition
+velocity_fits <- velocity_data[, {
+  res <- fit_distributions(.SD)
+  list(fits = list(res$fits), gof = list(res$gof))
+}, by = .(health_status, condition)]
+```
+```{r}
+# Install if not already installed (uncomment if needed)
+# install.packages("fitdistrplus")
+library(fitdistrplus)
+
+# Function to fit distributions for velocity data (only positive values)
+fit_distributions_velocity <- function(data) {
+  # Ensure data is positive for distributions that require it
+  pos_data <- data[Velocity_Magnitude > 0]
+  
+  tryCatch({
+    # Fit distributions that work with positive values
+    fit_lognorm <- fitdist(pos_data$Velocity_Magnitude, "lnorm")
+    fit_gamma <- fitdist(pos_data$Velocity_Magnitude, "gamma")
+    fit_weibull <- fitdist(pos_data$Velocity_Magnitude, "weibull")
+    
+    # Fit normal to original data (can handle negative values)
+    fit_norm <- fitdist(data$Velocity_Magnitude, "norm")
+    
+    # List of fitted distributions
+    fits <- list(normal = fit_norm,
+                 lognormal = fit_lognorm,
+                 gamma = fit_gamma,
+                 weibull = fit_weibull)
+    
+    # Compare distributions
+    gof_stats <- gofstat(fits)
+    
+    return(list(fits = fits, gof = gof_stats))
+  }, error = function(e) {
+    message("Error in fitting distributions: ", e$message)
+    return(NULL)
+  })
+}
+
+# Function to fit distributions for turning angle data
+fit_distributions_angle <- function(data) {
+  tryCatch({
+    # Fit distributions appropriate for angle data
+    fit_norm <- fitdist(data$turning_angle, "norm")
+    fit_cauchy <- fitdist(data$turning_angle, "cauchy")
+    fit_logistic <- fitdist(data$turning_angle, "logis")
+    
+    # List of fitted distributions
+    fits <- list(normal = fit_norm,
+                 cauchy = fit_cauchy,
+                 logistic = fit_logistic)
+    
+    # Compare distributions
+    gof_stats <- gofstat(fits)
+    
+    return(list(fits = fits, gof = gof_stats))
+  }, error = function(e) {
+    message("Error in fitting distributions: ", e$message)
+    return(NULL)
+  })
+}
+
+# Filter and prepare velocity data
+velocity_data <- all_data[!is.na(Velocity_Magnitude)]
+
+# Apply the function to each combination of health_status and condition for velocity
+velocity_fits <- velocity_data[, {
+  res <- fit_distributions_velocity(.SD)
+  if(!is.null(res)) {
+    list(fits = list(res$fits), gof = list(res$gof))
+  } else {
+    list(fits = list(NULL), gof = list(NULL))
+  }
+}, by = .(health_status, condition)]
+
+# Function to extract AIC values safely
+extract_aic <- function(gof) {
+  if(is.null(gof)) {
+    return(data.table(distribution = character(0), AIC = numeric(0)))
+  }
+  data.table(distribution = names(gof$aic), AIC = gof$aic)
+}
+
+# Extract AIC values for each subgroup
+velocity_aic <- velocity_fits[!is.null(gof[[1]]), 
+                            extract_aic(gof[[1]]), 
+                            by = .(health_status, condition)]
+
+# Plot AIC comparison
+ggplot(velocity_aic, aes(x = distribution, y = AIC, fill = distribution)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_grid(health_status ~ condition, scales = "free_y") +
+  scale_fill_manual(values = color_palette) +
+  labs(title = "Comparación de AIC para distribuciones ajustadas (Velocidad)",
+       x = "Distribución",
+       y = "AIC") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Calculate and plot turning angles
+all_data[, turning_angle := atan2(Velocity_Y * shift(Velocity_X) - Velocity_X * shift(Velocity_Y),
+                                 Velocity_X * shift(Velocity_X) + Velocity_Y * shift(Velocity_Y)) * (180 / pi),
+         by = .(rat, condition, session, health_status)]
+
+angle_data <- all_data[!is.na(turning_angle)]
+
+# Apply the function to each combination of health_status and condition for angles
+angle_fits <- angle_data[, {
+  res <- fit_distributions_angle(.SD)
+  if(!is.null(res)) {
+    list(fits = list(res$fits), gof = list(res$gof))
+  } else {
+    list(fits = list(NULL), gof = list(NULL))
+  }
+}, by = .(health_status, condition)]
+
+# Extract AIC values for angles
+angle_aic <- angle_fits[!is.null(gof[[1]]), 
+                       extract_aic(gof[[1]]), 
+                       by = .(health_status, condition)]
+
+# Plot AIC comparison for angles
+ggplot(angle_aic, aes(x = distribution, y = AIC, fill = distribution)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_grid(health_status ~ condition, scales = "free_y") +
+  scale_fill_manual(values = color_palette) +
+  labs(title = "Comparación de AIC para distribuciones ajustadas (Ángulo de giro)",
+       x = "Distribución",
+       y = "AIC") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Function to plot fitted distributions
+plot_fitted_distribution <- function(data, fits, variable, title) {
+  if(is.null(fits)) return(NULL)
+  
+  # Get the best fit based on AIC
+  aic_values <- sapply(fits, function(x) AIC(x))
+  best_fit <- fits[[which.min(aic_values)]]
+  
+  ggplot(data, aes_string(x = variable)) +
+    geom_histogram(aes(y = ..density..), bins = 50, 
+                  fill = "grey70", color = "black", alpha = 0.6) +
+    stat_function(fun = best_fit$density, 
+                 args = as.list(best_fit$estimate), 
+                 color = "#D55E00", size = 1) +
+    labs(title = title,
+         x = variable,
+         y = "Densidad") +
+    theme_minimal(base_size = 14)
+}
+
+# Plot fitted distributions for each combination
+for(hs in unique(velocity_data$health_status)) {
+  for(cond in unique(velocity_data$condition)) {
+    subset_data <- velocity_data[health_status == hs & condition == cond]
+    fits <- velocity_fits[health_status == hs & condition == cond]$fits[[1]]
+    
+    if(!is.null(fits)) {
+      p <- plot_fitted_distribution(subset_data, fits, "Velocity_Magnitude",
+                                  paste("Distribution fit:", hs, "-", cond))
+      print(p)
+    }
+  }
+}
+```
+
+```{r}
+# Define grid size (1 cm)
+grid_size <- 1
+
+# Create a density map by counting the number of points in each grid cell
+density_map <- all_data %>%
+  group_by(X, Y) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  complete(X = seq(floor(min(X, na.rm = TRUE)), ceiling(max(X, na.rm = TRUE)), by = grid_size),
+           Y = seq(floor(min(Y, na.rm = TRUE)), ceiling(max(Y, na.rm = TRUE)), by = grid_size),
+           fill = list(count = 0)) %>%
+  pivot_wider(names_from = Y, values_from = count, values_fill = 0) %>%
+  arrange(X) %>%
+  column_to_rownames("X") %>%
+  as.matrix()
+
+# Normalize the density map for better visualization
+density_map_norm <- density_map / max(density_map, na.rm = TRUE)
+
+# Scale heights (adjust zscale as needed)
+heightmap <- density_map_norm * 100  # Scaling factor for elevation
+```
+
+```{r}
+# Function to plot position density heatmap with session groups
+plot_position_density_heatmap <- function(data, n_sessions = 10) {
+  data <- data %>%
+    mutate(session_group = paste(
+      (ceiling(session / n_sessions) - 1) * n_sessions + 1,
+      "-",
+      ceiling(session / n_sessions) * n_sessions
+    ))
+  
+  ggplot(data, aes(x = X, y = Y)) +
+    stat_density_2d(aes(fill = ..density..), geom = "tile", contour = FALSE, n = 200) +  # Increased n for higher resolution
+    facet_grid(health_status + condition ~ session_group) +
+    scale_fill_viridis_c() +
+    labs(title = "Mapa de calor de densidad de posición",
+         x = "Posición X (cm)", 
+         y = "Posición Y (cm)",
+         fill = "Densidad") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "right",
+      panel.grid = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold"),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.text.x = element_text(size = 10)
+    ) +
+    coord_fixed(ratio = 1)
+}
+
+# Generate and save the plot with higher resolution
+density_heatmap <- plot_position_density_heatmap(all_data)
+ggsave("position_density_heatmap_high_res_es.png", density_heatmap, width = 24, height = 16, dpi = 600)
+```
+
+```{r}
+# Function to plot position density heatmap in 3D
+plot_position_density_heatmap_3d <- function(data, n_sessions = 10) {
+  data <- data %>%
+    mutate(session_group = paste(
+      (ceiling(session / n_sessions) - 1) * n_sessions + 1,
+      "-",
+      ceiling(session / n_sessions) * n_sessions
+    ))
+  
+  gg <- ggplot(data, aes(x = X, y = Y)) +
+    stat_density_2d(aes(fill = ..density..), geom = "tile", contour = FALSE, n = 100) +
+    facet_grid(health_status + condition + rat ~ session_group, 
+               labeller = labeller(session_group = function(x) paste("Sessions", x))) +
+    scale_fill_viridis_c() +
+    labs(title = "Mapa de calor de densidad de posición",
+         x = "Posición X (cm)", 
+         y = "Posición Y (cm)", 
+         fill = "Density") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "right",
+      panel.grid = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold"),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.text.x = element_text(size = 10),
+      plot.background = element_rect(fill = "white", colour = "white")
+    ) +
+    coord_fixed(ratio = 1)
+  
+  return(gg)
+}
+
+# Generate the ggplot
+gg <- plot_position_density_heatmap_3d(all_data)
+
+# Render the 3D plot
+plot_gg(gg, multicore = TRUE, width = 12, height = 8, scale = 300, 
+        zoom = 0.7, phi = 30, theta = 30, windowsize = c(1400, 1000))
+```
+
+```{r}
+render_snapshot("position_density_heatmap_3d.png", software_render = TRUE, width=4800, height=3600, )
+```
+
+```{r}
+all_data[, Kinetic_Energy := 0.5 * (Velocity_Magnitude^2), 
+         by = .(rat, condition, session, health_status)]
+```
+
+```{r}
+all_data[, Kinetic_Energy := remove_outliers(Kinetic_Energy), 
+         by = .(rat, condition, session, health_status)]
+```
+
+```{r}
+energy_distribution <- ggplot(all_data, aes(x = Kinetic_Energy, fill = health_status)) +
+  geom_density(alpha = 0.7) +
+  facet_grid(condition ~ ., scales = "free_y") +
+  scale_fill_manual(values = color_palette[c(1, 4)]) +
+  labs(title = "Distribución de Energía Cinética",
+       x = "Energía Cinética (unidad arbitraria)",
+       y = "Densidad",
+       fill = "Estado de salud") +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+    strip.background = element_rect(fill = color_palette[3], color = NA),
+    strip.text = element_text(color = "white", face = "bold")
+  )
+
+ggsave("enedist.png", energy_distribution, width = 24, height = 16, dpi = 600)
+```
+
+```{r}
+# Perform t-tests
+t_test_results <- all_data %>%
+  filter(!is.na(Kinetic_Energy)) %>%
+  group_by(condition) %>%
+  summarise(p_value = t.test(Kinetic_Energy ~ health_status)$p.value)
+
+# Display results
+print(t_test_results)
+```
+
+```{r}
+# Create 2D histograms or KDE for position data
+spatial_density <- all_data %>%
+  filter(!is.na(X) & !is.na(Y)) %>%
+  ggplot(aes(x = X, y = Y)) +
+  stat_density_2d(aes(z = ..density..), geom = "raster", contour = FALSE) +
+  facet_grid(health_status ~ condition)
+spatial_density
+```
+
+```{r}
+# Compute U(x, y)
+all_data <- all_data %>%
+  mutate(bin_x = cut(X, breaks = seq(min(X), max(X), by = grid_size)),
+         bin_y = cut(Y, breaks = seq(min(Y), max(Y), by = grid_size)))
+
+position_counts <- all_data %>%
+  count(bin_x, bin_y) %>%
+  mutate(probability = n / sum(n))
+
+position_counts <- position_counts %>%
+  mutate(U = -log(probability))
+
+# Plot Potential Energy Surface
+ggplot(position_counts, aes(x = as.numeric(bin_x), y = as.numeric(bin_y), fill = U)) +
+  geom_raster() +
+  scale_fill_viridis_c() +
+  labs(title = "Superficie de Energía Potencial Comportamental",
+       x = "Posición X (cm)",
+       y = "Posición Y (cm)",
+       fill = "Energía Potencial (U)") +
+  theme_minimal()
+```
+
+```{r}
+# Load required packages
+library(dplyr)
+library(tidyr)      # For data manipulation
+library(pracma)     # For gradient computation
+library(ggplot2)    # For plotting
+```
+
+```{r}
+# Define grid size based on your data's scale
+grid_size <- 1  # Example: 1 cm per bin
+
+# Calculate the range for X and Y
+x_min <- floor(min(all_data$X, na.rm = TRUE))
+x_max <- ceiling(max(all_data$X, na.rm = TRUE))
+y_min <- floor(min(all_data$Y, na.rm = TRUE))
+y_max <- ceiling(max(all_data$Y, na.rm = TRUE))
+
+# Calculate the number of bins for X and Y
+n_bins_x <- ceiling((x_max - x_min) / grid_size)
+n_bins_y <- ceiling((y_max - y_min) / grid_size)
+
+# Verify the number of bins
+cat("Number of X bins:", n_bins_x, "\n")
+cat("Number of Y bins:", n_bins_y, "\n")
+```
+
+```{r}
+# Create bin labels
+all_data <- all_data %>%
+  mutate(
+    bin_x = cut(X, breaks = seq(x_min, x_max, by = grid_size), include.lowest = TRUE, right = FALSE),
+    bin_y = cut(Y, breaks = seq(y_min, y_max, by = grid_size), include.lowest = TRUE, right = FALSE)
+  )
+
+# Count occurrences in each bin
+position_counts <- all_data %>%
+  group_by(bin_x, bin_y, health_status, condition) %>%
+  summarise(count = n(), .groups = 'drop')  # Summarize for each group if needed
+
+# To construct a potential energy surface, we need to consider all possible bin combinations
+# regardless of health_status and condition. However, if you're analyzing them separately,
+# you'll need to do this per group.
+
+# For simplicity, let's first handle overall potential energy
+overall_position_counts <- all_data %>%
+  group_by(bin_x, bin_y) %>%
+  summarise(n = n(), .groups = 'drop') %>%
+  complete(bin_x, bin_y, fill = list(n = 0))  # Fill missing combinations with 0
+
+# Calculate probability with smoothing to avoid log(0)
+overall_position_counts <- overall_position_counts %>%
+  mutate(
+    probability = (n + 1) / (sum(n) + n_bins_x * n_bins_y)  # Laplace smoothing
+  )
+
+# Compute behavioral potential energy
+overall_position_counts <- overall_position_counts %>%
+  mutate(
+    U = -log(probability)
+  )
+
+# Arrange bins in order
+overall_position_counts <- overall_position_counts %>%
+  arrange(bin_x, bin_y)
+```
+
+```{r}
+# Check the number of rows
+cat("Number of position_counts entries:", nrow(overall_position_counts), "\n")  # Should be n_bins_x * n_bins_y
+
+expected_entries <- n_bins_x * n_bins_y
+actual_entries <- nrow(overall_position_counts)
+
+if (actual_entries != expected_entries) {
+  stop("Mismatch in expected and actual number of bin combinations.")
+}
+```
+
+```{r}
+# Create the potential energy matrix
+potential_matrix <- matrix(overall_position_counts$U, 
+                           nrow = n_bins_x, 
+                           ncol = n_bins_y, 
+                           byrow = TRUE)  # Adjust 'byrow' based on your data's ordering
+
+# Verify the matrix dimensions
+cat("Potential matrix dimensions:", dim(potential_matrix), "\n")  # Should be n_bins_x × n_bins_y
+```
+
+```{r}
+# Add numerical bin indices for plotting
+overall_position_counts <- overall_position_counts %>%
+  mutate(
+    bin_x_num = as.numeric(sub("\\[(.+),.*", "\\1", bin_x)),
+    bin_y_num = as.numeric(sub("\\[(.+),.*", "\\1", bin_y))
+  )
+
+ggplot(overall_position_counts, aes(x = bin_x_num, y = bin_y_num, fill = U)) +
+  geom_raster() +
+  scale_fill_viridis_c() +
+  labs(title = "Behavioral Potential Energy Surface",
+       x = "Position X (cm)",
+       y = "Position Y (cm)",
+       fill = "Potential Energy (U)") +
+  theme_minimal()
+```
+
+```{r}
+# Compute the gradient of the potential energy matrix
+grad_U <- pracma::gradient(potential_matrix)
+
+# Extract the gradient components
+grad_U_x <- grad_U$X
+grad_U_y <- grad_U$Y
+```
+
+```{r}
+# Inspect gradients
+summary(grad_U_x)
+summary(grad_U_y)
+
+# Optionally, visualize gradients
+library(ggplot2)
+
+# Convert gradients to a data frame for plotting
+grad_df <- expand.grid(bin_x_num = 1:n_bins_x, bin_y_num = 1:n_bins_y) %>%
+  mutate(
+    grad_U_x = as.vector(grad_U_x),
+    grad_U_y = as.vector(grad_U_y)
+  )
+
+ggplot(grad_df, aes(x = bin_x_num, y = bin_y_num, fill = grad_U_x)) +
+  geom_raster() +
+  scale_fill_viridis_c() +
+  labs(title = "Gradient of U in X Direction",
+       x = "Bin X",
+       y = "Bin Y",
+       fill = "dU/dx") +
+  theme_minimal()
+
+ggplot(grad_df, aes(x = bin_x_num, y = bin_y_num, fill = grad_U_y)) +
+  geom_raster() +
+  scale_fill_viridis_c() +
+  labs(title = "Gradient of U in Y Direction",
+       x = "Bin X",
+       y = "Bin Y",
+       fill = "dU/dy") +
+  theme_minimal()
+```
+
+```{r}
+# Add numerical indices for bin_x and bin_y
+overall_position_counts <- overall_position_counts %>%
+  mutate(
+    bin_x_num = as.numeric(sub("\\[(.+),.*", "\\1", bin_x)) - x_min,  # Adjust based on how bins are labeled
+    bin_y_num = as.numeric(sub("\\[(.+),.*", "\\1", bin_y)) - y_min
+  )
+```
+
+```{r}
+# First, ensure each data point has bin indices
+all_data <- all_data %>%
+  mutate(
+    bin_x = cut(X, breaks = seq(x_min, x_max, by = grid_size), include.lowest = TRUE, right = FALSE),
+    bin_y = cut(Y, breaks = seq(y_min, y_max, by = grid_size), include.lowest = TRUE, right = FALSE)
+  ) %>%
+  mutate(
+    bin_x_num = as.numeric(sub("\\[(.+),.*", "\\1", bin_x)) - x_min + 1,  # +1 if bins start at 0
+    bin_y_num = as.numeric(sub("\\[(.+),.*", "\\1", bin_y)) - y_min + 1
+  )
+
+# Handle any potential NAs in binning
+all_data <- all_data %>%
+  filter(!is.na(bin_x_num) & !is.na(bin_y_num))
+```
+
+```{r}
+# Ensure indices are within matrix dimensions
+all_data <- all_data %>%
+  mutate(
+    # Clamp values to matrix boundaries
+    bin_x_idx = pmin(pmax(bin_x_num, 1), n_bins_x),
+    bin_y_idx = pmin(pmax(bin_y_num, 1), n_bins_y)
+  )
+
+# Extract gradient values
+all_data <- all_data %>%
+  mutate(
+    grad_U_x = grad_U_x[cbind(bin_x_idx, bin_y_idx)],
+    grad_U_y = grad_U_y[cbind(bin_x_idx, bin_y_idx)]
+  )
+```
+
+```{r}
+# View a sample of the mapped gradients
+head(all_data)
+```
+
+```{r}
+# Ensure that Acceleration_X and Acceleration_Y are present in all_data
+if (!all(c("Acceleration_X", "Acceleration_Y") %in% names(all_data))) {
+  stop("Acceleration_X and/or Acceleration_Y columns are missing in all_data.")
+}
+
+# Compute correlations
+cor_ax_gradUx <- cor(all_data$Acceleration_X, all_data$grad_U_x, use = "complete.obs")
+cor_ay_gradUy <- cor(all_data$Acceleration_Y, all_data$grad_U_y, use = "complete.obs")
+
+# Display the correlation results
+cat("Correlation between observed Acceleration_X and grad_U_x:", cor_ax_gradUx, "\n")
+cat("Correlation between observed Acceleration_Y and grad_U_y:", cor_ay_gradUy, "\n")
+```
+
+```{r}
+# Plot Acceleration_X vs. grad_U_x
+ggplot(all_data, aes(x = grad_U_x, y = Acceleration_X)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", color = "blue") +
+  labs(title = "Acceleration_X vs. Gradient U_x",
+       x = "Gradient of U in X (dU/dx)",
+       y = "Observed Acceleration X") +
+  theme_minimal()
+
+# Plot Acceleration_Y vs. grad_U_y
+ggplot(all_data, aes(x = grad_U_y, y = Acceleration_Y)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Acceleration_Y vs. Gradient U_y",
+       x = "Gradient of U in Y (dU/dy)",
+       y = "Observed Acceleration Y") +
+  theme_minimal()
+```
