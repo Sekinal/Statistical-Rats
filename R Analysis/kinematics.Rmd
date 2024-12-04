@@ -1,33 +1,69 @@
 ---
 title: "Animal Behavior Analysis: Comparing Healthy and Vestibular Syndrome Rats"
 output: html_notebook
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 # Background
 
-The study of animal behavior under controlled experimental conditions offers a unique window to explore how physical variables can reveal crucial aspects of adaptation and behavioral phenomena under different conditions. This approach allows us to analyze how biological alterations, such as those of the vestibular system, affect both locomotion dynamics and environmental sensing, as well as behavioral adaptation in static and dynamic environments.
+The study of animal behavior under controlled experimental conditions
+offers a unique window to explore how physical variables can reveal
+crucial aspects of adaptation and behavioral phenomena under different
+conditions. This approach allows us to analyze how biological
+alterations, such as those of the vestibular system, affect both
+locomotion dynamics and environmental sensing, as well as behavioral
+adaptation in static and dynamic environments.
 
-Physical variables, such as displacement velocity, trajectory patterns, and efficiency in performing temporo-spatial learning tasks (i.e., when and where a resource is delivered), offer a precise and quantitative measure of how subjects adapt their behavior under specific biological conditions. This multidimensional approach not only broadens our understanding of the mechanisms underlying behavioral adaptations and phenomena but could also have significant implications for developing therapeutic interventions and improving quality of life in cases of neurological disorders.
+Physical variables, such as displacement velocity, trajectory patterns,
+and efficiency in performing temporo-spatial learning tasks (i.e., when
+and where a resource is delivered), offer a precise and quantitative
+measure of how subjects adapt their behavior under specific biological
+conditions. This multidimensional approach not only broadens our
+understanding of the mechanisms underlying behavioral adaptations and
+phenomena but could also have significant implications for developing
+therapeutic interventions and improving quality of life in cases of
+neurological disorders.
 
-In this context, our study explores the use of physical variables to identify distinctive patterns of behavior between healthy subjects and those with vestibular syndrome (VS). This approach provides a more comprehensive view of the complexities in the integration of locomotion and spatio-temporal learning.
+In this context, our study explores the use of physical variables to
+identify distinctive patterns of behavior between healthy subjects and
+those with vestibular syndrome (VS). This approach provides a more
+comprehensive view of the complexities in the integration of locomotion
+and spatio-temporal learning.
 
 ## Objective
 
-To compare behavioral dynamics in healthy Wistar rats and rats with vestibular syndrome by analyzing associated physical variables, such as displacement velocity, trajectory patterns, and location density, under reinforcement programs contingent on the organisms' displacement (FD/VD 100cm), using an expanded experimental chamber for water delivery.
+To compare behavioral dynamics in healthy Wistar rats and rats with
+vestibular syndrome by analyzing associated physical variables, such as
+displacement velocity, trajectory patterns, and location density, under
+reinforcement programs contingent on the organisms' displacement (FD/VD
+100cm), using an expanded experimental chamber for water delivery.
 
 # Method
 
 ## Subjects
 
-Four 4-5 month old female Wistar rats, experimentally naive, two healthy (H) and two with vestibular syndrome (VS), water-deprived for 23 hours.
+Four 4-5 month old female Wistar rats, experimentally naive, two healthy
+(H) and two with vestibular syndrome (VS), water-deprived for 23 hours.
 
 ## Apparatus
 
-Functional Space Densification Apparatus (FSDA), 100 x 100 x 40 cm with uniform black walls and floor.
+Functional Space Densification Apparatus (FSDA), 100 x 100 x 40 cm with
+uniform black walls and floor.
 
 ## Procedure
 
-Subjects were grouped according to their biological condition: H rats (R1;R2) and VS rats (R3;R4). All subjects were exposed to two phases, presented in random sequence: VD (Variable Distance) and FD (Fixed Distance). In the VD phase, water (3ml, available for 3") was delivered each time the subject met a previously established distance criterion, which varied reaching an average of 100cm at the end of the session. The FD phase was similar, but water was delivered under a fixed criterion every time the subject traveled 100cm. The continuous displacement of the subjects was recorded through the coordinates (X,Y) of the center of mass, at a frequency of 5 Hz.
+Subjects were grouped according to their biological condition: H rats
+(R1;R2) and VS rats (R3;R4). All subjects were exposed to two phases,
+presented in random sequence: VD (Variable Distance) and FD (Fixed
+Distance). In the VD phase, water (3ml, available for 3") was delivered
+each time the subject met a previously established distance criterion,
+which varied reaching an average of 100cm at the end of the session. The
+FD phase was similar, but water was delivered under a fixed criterion
+every time the subject traveled 100cm. The continuous displacement of
+the subjects was recorded through the coordinates (X,Y) of the center of
+mass, at a frequency of 5 Hz.
 
 # Script setup
 
@@ -209,70 +245,727 @@ plot_acceleration_distribution <- function(data) {
 }
 ```
 
-
 ```{r}
 # Plot displacement distribution
 plot_displacement_distribution(cleaned_data)
 ```
-This image shows density distribution plots comparing displacement magnitudes between healthy (Sana) and VS-affected (Enferma) rats under two different conditions: DF (Fixed Distance) and DV (Variable Distance), shown in the top and bottom panels respectively.
 
-The x-axis represents the magnitude of displacement in centimeters (up to about 70cm), while the y-axis shows the density or frequency of these displacements. The plots reveal several interesting patterns:
+This image shows density distribution plots comparing displacement
+magnitudes between healthy (Sana) and VS-affected (Enferma) rats under
+two different conditions: DF (Fixed Distance) and DV (Variable
+Distance), shown in the top and bottom panels respectively.
 
-1. In both DF and DV conditions, there's a pronounced peak in displacement magnitude at very short distances (around 0-5cm), suggesting frequent small movements by both groups.
+The x-axis represents the magnitude of displacement in centimeters (up
+to about 70cm), while the y-axis shows the density or frequency of these
+displacements. The plots reveal several interesting patterns:
 
-2. The distributions follow a right-skewed pattern, with frequency decreasing as displacement magnitude increases.
+1.  In both DF and DV conditions, there's a pronounced peak in
+    displacement magnitude at very short distances (around 0-5cm),
+    suggesting frequent small movements by both groups.
 
-3. There appear to be subtle differences between healthy and VS-affected rats, particularly in the height and shape of the initial peaks.
+2.  The distributions follow a right-skewed pattern, with frequency
+    decreasing as displacement magnitude increases.
 
-4. The DF condition (top panel) shows slightly higher density values overall compared to the DV condition (bottom panel), suggesting more consistent movement patterns under fixed distance requirements.
+3.  There appear to be subtle differences between healthy and
+    VS-affected rats, particularly in the height and shape of the
+    initial peaks.
 
-5. Both groups show similar general patterns of movement distribution, though with some variations in the specific details of their distributions.
+4.  The DF condition (top panel) shows slightly higher density values
+    overall compared to the DV condition (bottom panel), suggesting more
+    consistent movement patterns under fixed distance requirements.
 
-This visualization effectively captures the quantitative differences in movement patterns between healthy and VS-affected rats under different experimental conditions, providing valuable insights into how vestibular syndrome affects locomotor behavior.
+5.  Both groups show similar general patterns of movement distribution,
+    though with some variations in the specific details of their
+    distributions.
+
+This visualization effectively captures the quantitative differences in
+movement patterns between healthy and VS-affected rats under different
+experimental conditions, providing valuable insights into how vestibular
+syndrome affects locomotor behavior.
 
 ```{r}
 # Plot velocity distribution
 plot_velocity_distribution(cleaned_data)
 ```
-This image shows the distribution of velocity magnitudes for both healthy (Sana) and VS-affected (Enferma) rats, again under both Fixed Distance (DF) and Variable Distance (DV) conditions. There are several key observations:
 
-1. The x-axis now shows velocity in cm/s (extending to about 300 cm/s), while the y-axis shows the density of these velocity measurements.
+This image shows the distribution of velocity magnitudes for both
+healthy (Sana) and VS-affected (Enferma) rats, again under both Fixed
+Distance (DF) and Variable Distance (DV) conditions. There are several
+key observations:
 
-2. Similar to the displacement plot, there are multiple peaks in the velocity distributions, particularly at lower velocities (around 0-50 cm/s), suggesting preferred movement speeds.
+1.  The x-axis now shows velocity in cm/s (extending to about 300 cm/s),
+    while the y-axis shows the density of these velocity measurements.
 
-3. The healthy rats appear to show more distinct peaks in their velocity distribution, particularly in the DF condition, which might indicate more controlled or structured movement patterns.
+2.  Similar to the displacement plot, there are multiple peaks in the
+    velocity distributions, particularly at lower velocities (around
+    0-50 cm/s), suggesting preferred movement speeds.
 
-4. The distributions are again right-skewed, with most velocities concentrated in the lower ranges and a long tail extending into higher velocities.
+3.  The healthy rats appear to show more distinct peaks in their
+    velocity distribution, particularly in the DF condition, which might
+    indicate more controlled or structured movement patterns.
 
-5. The DF condition (top panel) shows slightly different velocity patterns compared to the DV condition (bottom panel), with somewhat higher and more distinct peaks.
+4.  The distributions are again right-skewed, with most velocities
+    concentrated in the lower ranges and a long tail extending into
+    higher velocities.
 
-This visualization complements the previous displacement plot by showing how the rats' movement speeds vary under different conditions. The differences between healthy and VS-affected rats are particularly interesting in terms of their preferred movement velocities and the overall structure of their speed distributions.
+5.  The DF condition (top panel) shows slightly different velocity
+    patterns compared to the DV condition (bottom panel), with somewhat
+    higher and more distinct peaks.
 
-The multiple peaks in the velocity distributions might represent different modes of movement (like walking, running, or quick turns), and the differences between healthy and VS-affected rats in these patterns could reflect how vestibular syndrome impacts movement control and speed selection.
+This visualization complements the previous displacement plot by showing
+how the rats' movement speeds vary under different conditions. The
+differences between healthy and VS-affected rats are particularly
+interesting in terms of their preferred movement velocities and the
+overall structure of their speed distributions.
+
+The multiple peaks in the velocity distributions might represent
+different modes of movement (like walking, running, or quick turns), and
+the differences between healthy and VS-affected rats in these patterns
+could reflect how vestibular syndrome impacts movement control and speed
+selection.
+
 ```{r}
 # Plot acceleration distribution
 plot_acceleration_distribution(cleaned_data)
 ```
-This acceleration distribution plot is particularly interesting as it reveals some striking patterns:
 
-1. The x-axis shows acceleration in cm/s², ranging from -10 to +10, with 0 at the center, allowing us to see both acceleration and deceleration patterns.
+This acceleration distribution plot is particularly interesting as it
+reveals some striking patterns:
 
-2. The most notable feature is the prominent central peak at 0 acceleration, indicating a strong tendency for steady-state movement (constant velocity) in both groups.
+1.  The x-axis shows acceleration in cm/s², ranging from -10 to +10,
+    with 0 at the center, allowing us to see both acceleration and
+    deceleration patterns.
 
-3. The distribution shows clear symmetrical patterns around 0, with multiple distinctive peaks on both positive and negative sides, suggesting systematic patterns of acceleration and deceleration.
+2.  The most notable feature is the prominent central peak at 0
+    acceleration, indicating a strong tendency for steady-state movement
+    (constant velocity) in both groups.
 
-4. There are marked differences between DF (top) and DV (bottom) conditions:
-   - The DF condition shows sharper, more defined peaks
-   - The DV condition shows broader, more spread-out distributions
+3.  The distribution shows clear symmetrical patterns around 0, with
+    multiple distinctive peaks on both positive and negative sides,
+    suggesting systematic patterns of acceleration and deceleration.
 
-5. Most notably, there are clear differences between healthy (Sana) and VS-affected (Enferma) rats:
-   - Healthy rats show higher, more defined peaks
-   - VS-affected rats show more spread-out distributions with lower peaks
-   - These differences are particularly evident in the secondary peaks on either side of the central peak
+4.  There are marked differences between DF (top) and DV (bottom)
+    conditions:
 
-This graph effectively captures how vestibular syndrome affects movement control - the less defined peaks in VS-affected rats suggest less precise control over acceleration and deceleration, which is consistent with vestibular system impairment affecting balance and movement coordination. The multiple symmetric peaks might represent characteristic movement patterns or strategies used by the rats during their exploration and task completion.
+    -   The DF condition shows sharper, more defined peaks
+    -   The DV condition shows broader, more spread-out distributions
 
+5.  Most notably, there are clear differences between healthy (Sana) and
+    VS-affected (Enferma) rats:
 
+    -   Healthy rats show higher, more defined peaks
+    -   VS-affected rats show more spread-out distributions with lower
+        peaks
+    -   These differences are particularly evident in the secondary
+        peaks on either side of the central peak
 
+This graph effectively captures how vestibular syndrome affects movement
+control - the less defined peaks in VS-affected rats suggest less
+precise control over acceleration and deceleration, which is consistent
+with vestibular system impairment affecting balance and movement
+coordination. The multiple symmetric peaks might represent
+characteristic movement patterns or strategies used by the rats during
+their exploration and task completion.
 
+```{r}
+# Summary statistics function
+summarize_stats <- function(data) {
+  data %>%
+    group_by(health_status, condition) %>%
+    summarise(
+      mean_disp = mean(Displacement_Magnitude, na.rm = TRUE),
+      median_disp = median(Displacement_Magnitude, na.rm = TRUE),
+      sd_disp = sd(Displacement_Magnitude, na.rm = TRUE),
+      iqr_disp = IQR(Displacement_Magnitude, na.rm = TRUE),
+      mean_vel = mean(Velocity_Magnitude, na.rm = TRUE),
+      median_vel = median(Velocity_Magnitude, na.rm = TRUE),
+      sd_vel = sd(Velocity_Magnitude, na.rm = TRUE),
+      iqr_vel = IQR(Velocity_Magnitude, na.rm = TRUE),
+      mean_acc = mean(Acceleration_Magnitude, na.rm = TRUE),
+      median_acc = median(Acceleration_Magnitude, na.rm = TRUE),
+      sd_acc = sd(Acceleration_Magnitude, na.rm = TRUE),
+      iqr_acc = IQR(Acceleration_Magnitude, na.rm = TRUE)
+    )
+}
 
+# Calculate summary statistics
+summary_stats <- summarize_stats(cleaned_data)
+print(summary_stats)
+```
+
+From the summary statistics, we can observe several differences between
+healthy and VS-affected rats in terms of displacement, velocity, and
+acceleration magnitudes across both DF (fixed distance) and DV (variable
+distance) conditions.
+
+**Displacement Magnitude:**
+
+-   **Healthy Rats (Sana):**
+
+    -   **DF Condition:** Mean displacement magnitude of approximately
+        3.3 cm and median of about 1.2 cm. Standard deviation of
+        approximately 5.0 cm and an interquartile range of about 3.7 cm.
+
+    -   **DV Condition:** Mean displacement magnitude of around 3.8 cm
+        and median of about 1.7 cm. Standard deviation of approximately
+        6.0 cm and an interquartile range of about 3.5 cm.
+
+-   **VS-affected Rats (Enferma):**
+
+    -   **DF Condition:** Mean displacement magnitude of approximately
+        7.5 cm and median of about 3.2 cm. Standard deviation of
+        approximately 11.5 cm and an interquartile range of about 7.0
+        cm. 
+    -   **DV Condition:** Mean displacement magnitude of around 9.8 cm
+        and median of about 4.8 cm. Standard deviation of approximately
+        13.2 cm and an interquartile range of about 9.1 cm.
+
+**Velocity Magnitude:**
+
+-   **Healthy Rats (Sana):**
+
+    -   **DF Condition:** Mean velocity magnitude of about 20.8 cm/s and
+        median of approximately 10.2 cm/s. Standard deviation of
+        approximately 29.6 cm/s and an interquartile range of about 18.3
+        cm/s.
+
+    -   **DV Condition:** Mean velocity magnitude of around 27.4 cm/s
+        and median of about 15.5 cm/s. Standard deviation of
+        approximately 35.3 cm/s and an interquartile range of about 25.9
+        cm/s.
+
+-   **VS-affected Rats (Enferma):**
+
+    -   **DF Condition:** Mean velocity magnitude of approximately 49.9
+        cm/s and median of about 26.2 cm/s. Standard deviation of
+        approximately 58.1 cm/s and an interquartile range of about 54.5
+        cm/s.
+
+    -   **DV Condition:** Mean velocity magnitude of around 61.5 cm/s
+        and median of about 36.7 cm/s. Standard deviation of
+        approximately 63.6 cm/s and an interquartile range of about 69.0
+        cm/s.
+
+**Acceleration Magnitude:**
+
+-   **Healthy Rats (Sana):**
+
+    -   **DF Condition:** Mean acceleration of approximately -0.055
+        cm/s² and median of 0 cm/s². Standard deviation of approximately
+        2.5 cm/s² and an interquartile range of about 2.2 cm/s².
+
+    -   **DV Condition:** Mean acceleration of around -0.046 cm/s² and
+        median of 0 cm/s². Standard deviation of approximately 2.7 cm/s²
+        and an interquartile range of about 2.3 cm/s².
+
+-   **VS-affected Rats (Enferma):**
+
+    -   **DF Condition:** Mean acceleration of approximately -0.038
+        cm/s² and median of 0 cm/s². Standard deviation of approximately
+        3.4 cm/s² and an interquartile range of about 2.3 cm/s².
+
+    -   **DV Condition:** Mean acceleration of around -0.011 cm/s² and
+        median of 0 cm/s². Standard deviation of approximately 3.8 cm/s²
+        and an interquartile range of about 4.6 cm/s².
+
+Based on the summary statistics and their relationship with the plots,
+several key insights emerge:
+
+1.  **Movement Magnitude Differences:**
+
+-   VS-affected rats show consistently larger displacement magnitudes
+    (roughly 2-2.5 times higher) than healthy rats in both conditions
+-   This aligns with the displacement distribution plots, where
+    VS-affected rats show broader distributions with more substantial
+    movements
+-   This suggests that VS-affected rats may have less precise movement
+    control, requiring larger movements to accomplish the same tasks
+
+2.  **Velocity Patterns:**
+
+-   VS-affected rats exhibit notably higher velocities (approximately
+    2.3-2.4 times higher means) compared to healthy rats
+-   The larger standard deviations and IQRs in VS-affected rats (about
+    twice those of healthy rats) indicate more variable movement speeds
+-   This corresponds to the velocity distribution plots, where
+    VS-affected rats show broader, more dispersed distributions
+-   These patterns suggest less controlled movement in VS-affected rats,
+    possibly compensating for balance issues with faster, more variable
+    movements
+
+3.  **Acceleration Characteristics:**
+
+-   Both groups show median accelerations of 0, corresponding to the
+    central peaks in the acceleration distributions
+-   VS-affected rats show larger standard deviations in acceleration
+    (3.4-3.8 cm/s² vs 2.5-2.7 cm/s² for healthy rats)
+-   This matches the acceleration plots, where VS-affected rats display
+    more spread-out distributions
+-   The pattern suggests less steady movement control in VS-affected
+    rats, with more frequent changes in velocity
+
+4.  **Condition Effects (DF vs DV):**
+
+-   Both groups show slightly higher values in DV compared to DF
+    conditions across all measures
+-   This difference is consistent with the nature of the tasks, where
+    variable distance requirements might demand more adaptive movement
+    patterns
+-   The effect is visible in all three distribution plots, where DV
+    conditions show slightly broader distributions
+
+5.  **Movement Control Implications:**
+
+-   The statistics and plots together suggest that VS-affected rats
+    exhibit:
+    -   Less precise movement control
+    -   More variable movement patterns
+    -   Compensation strategies involving larger movements and higher
+        speeds
+    -   Less stable acceleration patterns
+-   These patterns are consistent with vestibular system impairment
+    affecting balance and spatial orientation
+
+This quantitative analysis provides strong evidence for how vestibular
+syndrome affects movement patterns and behavioral adaptations in rats,
+showing clear differences in both the magnitude and variability of their
+movements.
+
+```{r}
+t_test_displacement_df <- t.test(Displacement_Magnitude ~ health_status, data = cleaned_data, subset = condition == "DF")
+
+t_test_displacement_dv <- t.test(Displacement_Magnitude ~ health_status, data = cleaned_data, subset = condition == "DV")
+
+print(t_test_displacement_df)
+print(t_test_displacement_dv)
+```
+
+These t-test results provide strong statistical evidence for the
+differences between healthy and VS-affected rats' movement patterns.
+Let's analyze the results in detail:
+
+For Fixed Distance (DF) Condition: 1. The test statistic t = 133.88 is
+extremely large, indicating a substantial difference between groups 2.
+The difference in means is approximately 4.21 cm (7.51 cm for
+VS-affected vs 3.30 cm for healthy rats) 3. The 95% confidence interval
+[4.15, 4.27] is narrow and entirely positive 4. The p-value \< 2.2e-16
+indicates extremely strong statistical significance
+
+For Variable Distance (DV) Condition: 1. The test statistic t = 162.34
+is even larger than in the DF condition 2. The difference in means is
+larger at approximately 6.07 cm (9.83 cm for VS-affected vs 3.77 cm for
+healthy rats) 3. The 95% confidence interval [5.99, 6.14] is again
+narrow and entirely positive 4. The p-value \< 2.2e-16 also indicates
+extremely strong statistical significance
+
+Key Implications: 1. **Statistical Significance**: Both tests show
+overwhelming evidence (p \< 2.2e-16) that the differences between
+healthy and VS-affected rats are not due to chance
+
+2.  **Effect Size**:
+    -   In DF: VS-affected rats move on average 4.21 cm more per
+        displacement
+    -   In DV: The difference increases to 6.07 cm per displacement
+    -   These differences are substantial considering the average
+        displacement magnitudes
+3.  **Condition Comparison**:
+    -   The larger t-statistic in DV condition (162.34 vs 133.88)
+        suggests the difference between groups is even more pronounced
+        under variable distance requirements
+    -   Both groups show slightly larger displacements in DV compared to
+        DF conditions
+4.  **Precision**:
+    -   The narrow confidence intervals indicate high precision in
+        estimating the true population differences
+    -   This high precision is partly due to the large sample sizes (df
+        \> 170,000)
+5.  **Clinical Relevance**:
+    -   The results quantitatively confirm that vestibular syndrome
+        significantly affects movement patterns
+    -   The larger differences in the DV condition suggest that
+        VS-affected rats have more difficulty adapting to variable
+        requirements
+
+These statistical results strongly support the observational and
+descriptive findings, providing robust evidence for the impact of
+vestibular syndrome on rat movement patterns.
+
+```{r}
+t_test_velocity_df <- t.test(Velocity_Magnitude ~ health_status, data = cleaned_data, subset = condition == "DF")
+t_test_velocity_dv <- t.test(Velocity_Magnitude ~ health_status, data = cleaned_data, subset = condition == "DV")
+
+print(t_test_velocity_df)
+print(t_test_velocity_dv)
+```
+
+These velocity t-test results provide additional compelling evidence of
+movement differences between healthy and VS-affected rats. Let's analyze
+these results in detail:
+
+For Fixed Distance (DF) Condition: 1. The test statistic t = 183.88 is
+extremely large, even higher than for displacement 2. The mean velocity
+difference is approximately 29.04 cm/s (49.88 cm/s for VS-affected vs
+20.83 cm/s for healthy rats) 3. The 95% confidence interval [28.73,
+29.35] is narrow and entirely positive 4. The p-value \< 2.2e-16
+indicates extremely strong statistical significance
+
+For Variable Distance (DV) Condition: 1. The test statistic t = 184.56
+is slightly larger than in the DF condition 2. The mean velocity
+difference increases to approximately 34.14 cm/s (61.52 cm/s for
+VS-affected vs 27.38 cm/s for healthy rats) 3. The 95% confidence
+interval [33.77, 34.50] is narrow and entirely positive 4. The p-value
+\< 2.2e-16 also indicates extremely strong statistical significance
+
+Key Implications:
+
+1.  **Magnitude of Difference**:
+    -   VS-affected rats move at speeds roughly 2.4 times faster than
+        healthy rats in DF condition
+    -   This ratio is similar (2.2 times faster) in the DV condition
+    -   These differences are substantial and consistent across
+        conditions
+2.  **Condition Effects**:
+    -   Both groups show higher velocities in DV compared to DF
+        conditions
+    -   VS-affected: 61.52 cm/s (DV) vs 49.88 cm/s (DF)
+    -   Healthy: 27.38 cm/s (DV) vs 20.83 cm/s (DF)
+    -   This suggests that variable distance requirements lead to faster
+        movements in both groups
+3.  **Statistical Robustness**:
+    -   The very large t-statistics (\>180 for both conditions) indicate
+        extremely robust differences
+    -   The narrow confidence intervals suggest high precision in these
+        estimates
+    -   The large degrees of freedom (\>180,000) provide high
+        statistical power
+4.  **Behavioral Implications**:
+    -   The consistently higher velocities in VS-affected rats might
+        represent:
+        -   Compensatory mechanisms for balance issues
+        -   Less precise movement control
+        -   Different movement strategies to accomplish the same tasks
+    -   The increased velocities in DV conditions might reflect:
+        -   Greater movement urgency under variable requirements
+        -   Different strategic approaches to unpredictable situations
+5.  **Clinical Significance**:
+    -   The magnitude of velocity differences (≈29-34 cm/s) is
+        substantial
+    -   This suggests fundamental changes in movement strategy due to
+        vestibular syndrome
+    -   The consistency across conditions indicates a systematic effect
+        of the condition
+
+These velocity analyses complement the displacement findings, showing
+that VS-affected rats not only move in larger increments but do so at
+significantly higher speeds. This might represent a compensatory
+strategy where faster movements help maintain balance or accomplish
+tasks despite vestibular impairment.
+
+```{r}
+t_test_acceleration_df <- t.test(Acceleration_Magnitude ~ health_status, data = cleaned_data, subset = condition == "DF")
+
+t_test_acceleration_dv <- t.test(Acceleration_Magnitude ~ health_status, data = cleaned_data, subset = condition == "DV")
+
+print(t_test_acceleration_df)
+print(t_test_acceleration_dv)
+```
+
+The acceleration t-test results show a markedly different pattern
+compared to the displacement and velocity tests. Let's analyze these
+results in detail:
+
+For Fixed Distance (DF) Condition: 1. The test statistic t = 1.7112 is
+much smaller than in previous tests 2. The mean acceleration difference
+is minimal (≈0.017 cm/s²) 3. The 95% confidence interval [-0.0025,
+0.0363] includes zero 4. The p-value = 0.08704 is not significant at the
+conventional α = 0.05 level
+
+For Variable Distance (DV) Condition: 1. The test statistic t = 3.0207
+is larger than in DF but still much smaller than velocity/displacement
+tests 2. The mean acceleration difference is small (≈0.035 cm/s²) 3. The
+95% confidence interval [0.0123, 0.0579] is positive but small 4. The
+p-value = 0.002522 is statistically significant but much larger than
+previous tests
+
+Key Implications:
+
+1.  **Magnitude of Effects**:
+    -   The differences in acceleration are very small compared to
+        displacement and velocity
+    -   Both groups show mean accelerations close to zero
+    -   VS-affected: -0.038 cm/s² (DF) and -0.011 cm/s² (DV)
+    -   Healthy: -0.055 cm/s² (DF) and -0.046 cm/s² (DV)
+2.  **Statistical Significance**:
+    -   DF condition shows no significant difference (p \> 0.05)
+    -   DV condition shows statistical significance but with much less
+        strength than previous measures
+    -   This suggests acceleration patterns are more similar between
+        groups than displacement or velocity
+3.  **Behavioral Interpretation**:
+    -   The near-zero means in both groups suggest:
+        -   Most movements involve balanced acceleration and
+            deceleration
+        -   Both groups maintain similar overall movement dynamics
+        -   Basic movement control mechanisms remain partially intact in
+            VS-affected rats
+4.  **Condition Effects**:
+    -   The difference between DF and DV conditions is subtle
+    -   DV shows slightly more pronounced group differences
+    -   This might reflect different strategic approaches to variable
+        requirements
+5.  **Clinical Significance**:
+    -   The similar acceleration patterns suggest that:
+        -   Basic movement control mechanisms are preserved in
+            VS-affected rats
+        -   Differences in movement emerge more in displacement and
+            velocity than in acceleration
+        -   Compensatory mechanisms might work to maintain stable
+            acceleration patterns
+6.  **Methodological Insights**:
+    -   The contrast with displacement/velocity results suggests that:
+        -   Movement differences manifest more in magnitude than in
+            dynamic changes
+        -   Acceleration might be more tightly controlled even with
+            vestibular impairment
+        -   Different aspects of movement are affected differently by
+            vestibular syndrome
+
+These acceleration results provide an important nuance to our
+understanding of how vestibular syndrome affects movement. While
+displacement and velocity show clear differences between groups,
+acceleration patterns remain more similar, suggesting that some
+fundamental aspects of movement control are preserved despite the
+condition. This might reflect the operation of compensatory mechanisms
+that help maintain basic movement dynamics even when overall movement
+patterns are altered.
+
+```{r}
+# Function to plot position density heatmap with session groups
+plot_position_density_heatmap <- function(data, n_sessions = 10) {
+  data <- data %>%
+    mutate(session_group = paste(
+      (ceiling(session / n_sessions) - 1) * n_sessions + 1,
+      "-",
+      ceiling(session / n_sessions) * n_sessions
+    ))
+  
+  ggplot(data, aes(x = X, y = Y)) +
+    stat_density_2d(aes(fill = ..density..), geom = "tile", contour = FALSE, n = 100) +  # Increased n for higher resolution
+    facet_grid(health_status + condition ~ session_group) +
+    scale_fill_viridis_c() +
+    labs(title = "Mapa de calor de densidad de posición",
+         x = "Posición X (cm)", 
+         y = "Posición Y (cm)",
+         fill = "Densidad") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "right",
+      panel.grid = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold"),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.text.x = element_text(size = 10)
+    ) +
+    coord_fixed(ratio = 1)
+}
+
+# Generate and save the plot with higher resolution
+plot_position_density_heatmap(cleaned_data)
+```
+
+This position density heatmap provides important spatial insights about
+how both healthy (Sana) and VS-affected (Enferma) rats utilize the
+experimental space across different session groups (1-10, 11-20, 21-30,
+31-40) and conditions (DF and DV).
+
+Key observations:
+
+1.  Temporal Evolution (across session groups):
+
+-   Both groups show a progressive concentration of activity, with later
+    sessions (31-40) displaying more focused hotspots, with the
+    exception of the second's row DV sick rats.
+-   This suggests learning and optimization of movement patterns over
+    time
+
+2.  Group Differences:
+
+-   Healthy rats (Sana) show more concentrated, focused density patterns
+    with distinct hotspots
+-   VS-affected rats (Enferma) display more diffuse patterns with less
+    defined centers of activity
+-   This aligns with earlier findings about VS-affected rats showing
+    larger, more variable movements
+
+3.  Condition Effects:
+
+-   DF (Fixed Distance) condition shows slightly more concentrated
+    patterns compared to DV (Variable Distance)
+-   This makes sense given the predictable nature of fixed distance
+    requirements
+
+4.  Spatial Organization:
+
+-   Both groups tend to develop central preferences in the space, at
+    least for the DF case
+-   Healthy rats maintain more consistent spatial patterns
+-   VS-affected rats show broader spatial distribution, possibly
+    reflecting their compromised spatial orientation, e.g., while
+    healthy rats show clear spatial optimization (tighter hotspots) over
+    sessions in both conditions, VS-affected rats show minimal
+    improvement in spatial focusing during the DV condition. This
+    suggests a specific difficulty with adapting to variable, more
+    complex task demands.
+-   The stark difference between DF and DV conditions for VS-affected
+    rats suggests that their spatial orientation difficulties are
+    particularly pronounced when faced with variable, less predictable
+    requirements
+
+These spatial patterns complement the previous analyses by showing how
+the differences in movement characteristics (velocity, acceleration,
+displacement) manifest in actual space use, providing a more complete
+picture of how vestibular syndrome affects behavioral adaptation and
+spatial learning. The lack of optimization in the DV case for the
+VS-affected rats also provides important evidence that vestibular
+syndrome not only affects basic movement parameters but specifically
+impairs the ability to optimize movement patterns in more complex,
+variable conditions - a crucial insight for understanding the full
+impact of vestibular dysfunction on motor learning and adaptation.
+
+```{r}
+# Function to plot turning angle distribution
+plot_turning_angle_distribution <- function(data) {
+  data[, turning_angle := atan2(Velocity_Y * shift(Velocity_X) - Velocity_X * shift(Velocity_Y),
+                                Velocity_X * shift(Velocity_X) + Velocity_Y * shift(Velocity_Y)) * (180 / pi),
+       by = .(rat, condition, session, health_status)]
+  
+  data[, turning_angle := remove_outliers(turning_angle), 
+       by = .(rat, condition, session, health_status)]
+  
+  ggplot(data, aes(x = turning_angle, fill = health_status)) +
+    geom_density(alpha = 0.7) +
+    facet_grid(condition ~ ., scales = "free_y") +
+    scale_fill_manual(values = color_palette[c(1, 4)]) +
+    labs(title = "Distribución de ángulo de giro",
+         x = "Ángulo de giro (grados)",
+         y = "Densidad",
+         fill = "Estado de salud") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold")
+    ) +
+    coord_cartesian(xlim = c(-180, 180))
+}
+
+plot_turning_angle_distribution(cleaned_data)
+
+```
+
+The turning angle distribution plot reveals crucial differences in
+rotational movement patterns between healthy and VS-affected rats:
+
+Key Observations:
+
+1.  Central Peak Characteristics:
+
+-   Healthy rats show a prominent peak at 0 degrees, indicating frequent
+    straight-line movement
+-   VS-affected rats demonstrate a notably lower central peak in both DF
+    and DV conditions
+-   This suggests VS-affected rats maintain straight trajectories less
+    frequently
+
+2.  Distribution Width:
+
+-   VS-affected rats show wider, more uniform distributions across all
+    angles (-180° to +180°)
+-   This broader spread indicates more varied turning behaviors and less
+    directional consistency
+-   The flatter distribution suggests less controlled or more random
+    turning patterns
+
+3.  Condition Comparison (DF vs DV):
+
+-   Both groups show reduced peak heights in the DV condition
+-   The spread pattern remains consistently wider for VS-affected rats
+    in both conditions
+-   This indicates that turning behavior impairment is a fundamental
+    characteristic of VS, independent of task conditions
+
+These patterns suggest that VS fundamentally affects directional control
+and turning behavior, with VS-affected rats showing: - Less ability to
+maintain straight trajectories - More variable and less controlled
+turning patterns - Consistent impairment across different task
+conditions
+
+This turning angle analysis provides important insights into how
+vestibular dysfunction affects not just linear movement but also
+rotational control and directional stability.
+
+```{r}
+t_test_turning_df <- t.test(turning_angle ~ health_status, data = cleaned_data, subset = condition == "DF")
+
+t_test_turning_dv <- t.test(turning_angle ~ health_status, data = cleaned_data, subset = condition == "DV")
+
+print(t_test_turning_df)
+print(t_test_turning_dv)
+```
+
+These t-test results for turning angles reveal significant statistical
+differences between healthy and VS-affected rats, with some fascinating
+contrasts between conditions:
+
+Fixed Distance (DF) Condition:
+
+1\. VS-affected rats show a higher mean turning angle (5.73° vs 2.81°
+for healthy rats)
+
+2\. The difference is highly significant (p = 5.159e-16)
+
+3\. The 95% CI [2.22°, 3.63°] indicates a consistent positive difference
+
+4\. Large sample size (df = 319,203) provides robust statistical power
+
+Variable Distance (DV) Condition:
+
+1\. Interestingly, the pattern reverses: VS-affected rats show negative
+mean turning (-2.54° vs 1.84° for healthy)
+
+2\. Even stronger statistical significance (p \< 2.2e-16)
+
+3\. The 95% CI [-5.12°, -3.63°] shows a substantial negative difference
+
+4\. Similarly large sample size (df = 291,355)
+
+Key Insights:
+
+1.  Directional Bias:
+
+-   DF: VS-affected rats tend toward right turns (positive angles)
+-   DV: VS-affected rats tend toward left turns (negative angles)
+-   This suggests condition-dependent asymmetric compensation strategies
+
+2.  Consistency:
+
+-   The tight confidence intervals in both conditions indicate reliable
+    differences
+-   The opposing directions between conditions might reflect different
+    coping strategies for different task demands
+
+3.  Clinical Implications:
+
+-   The systematic differences in turning bias suggest specific
+    vestibular compensation mechanisms
+-   The task-dependent nature of these biases indicates complex
+    interaction between vestibular function and behavioral requirements
+
+This statistical evidence strongly supports the visual patterns seen in
+the turning angle distributions and adds important nuance about
+directional preferences in different conditions.
