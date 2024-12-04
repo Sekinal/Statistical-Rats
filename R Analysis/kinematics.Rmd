@@ -1,0 +1,278 @@
+---
+title: "Animal Behavior Analysis: Comparing Healthy and Vestibular Syndrome Rats"
+output: html_notebook
+---
+
+# Background
+
+The study of animal behavior under controlled experimental conditions offers a unique window to explore how physical variables can reveal crucial aspects of adaptation and behavioral phenomena under different conditions. This approach allows us to analyze how biological alterations, such as those of the vestibular system, affect both locomotion dynamics and environmental sensing, as well as behavioral adaptation in static and dynamic environments.
+
+Physical variables, such as displacement velocity, trajectory patterns, and efficiency in performing temporo-spatial learning tasks (i.e., when and where a resource is delivered), offer a precise and quantitative measure of how subjects adapt their behavior under specific biological conditions. This multidimensional approach not only broadens our understanding of the mechanisms underlying behavioral adaptations and phenomena but could also have significant implications for developing therapeutic interventions and improving quality of life in cases of neurological disorders.
+
+In this context, our study explores the use of physical variables to identify distinctive patterns of behavior between healthy subjects and those with vestibular syndrome (VS). This approach provides a more comprehensive view of the complexities in the integration of locomotion and spatio-temporal learning.
+
+## Objective
+
+To compare behavioral dynamics in healthy Wistar rats and rats with vestibular syndrome by analyzing associated physical variables, such as displacement velocity, trajectory patterns, and location density, under reinforcement programs contingent on the organisms' displacement (FD/VD 100cm), using an expanded experimental chamber for water delivery.
+
+# Method
+
+## Subjects
+
+Four 4-5 month old female Wistar rats, experimentally naive, two healthy (H) and two with vestibular syndrome (VS), water-deprived for 23 hours.
+
+## Apparatus
+
+Functional Space Densification Apparatus (FSDA), 100 x 100 x 40 cm with uniform black walls and floor.
+
+## Procedure
+
+Subjects were grouped according to their biological condition: H rats (R1;R2) and VS rats (R3;R4). All subjects were exposed to two phases, presented in random sequence: VD (Variable Distance) and FD (Fixed Distance). In the VD phase, water (3ml, available for 3") was delivered each time the subject met a previously established distance criterion, which varied reaching an average of 100cm at the end of the session. The FD phase was similar, but water was delivered under a fixed criterion every time the subject traveled 100cm. The continuous displacement of the subjects was recorded through the coordinates (X,Y) of the center of mass, at a frequency of 5 Hz.
+
+# Script setup
+
+```{r}
+# Load required libraries
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+library(zoo)
+library(viridis)
+library(entropy)
+library(fractaldim)
+library(stats)
+library(purrr)
+library(data.table)
+library(rayshader)
+library(dplyr)
+
+# Function to read and preprocess data
+read_and_preprocess <- function(file_path) {
+  data <- fread(file_path, skip = 12)
+  
+  # Ensure column names exist and select them
+  if(all(c("Time", "X", "Y") %in% names(data))) {
+    data <- data[, .(Time, X, Y)]
+  } else {
+    stop("Required columns (Time, X, Y) not found in the data")
+  }
+  
+  # Add additional columns
+  data[, `:=`(
+    file = basename(file_path),
+    rat = substr(basename(file_path), 1, 2),
+    condition = ifelse(grepl("DV", basename(file_path)), "DV", "DF"),
+    session = as.numeric(gsub(".*s(\\d+).*", "\\1", basename(file_path))),
+    health_status = ifelse(grepl("Síndrome Vestibular", file_path), "Enferma", "Sana")
+  )]
+  
+  return(data)
+}
+
+# Read all files from S3 and S4 directories (healthy rats)
+s3_files <- list.files("/home/thermostatic/Desktop/Ratas/datos/Sanas/S3", full.names = TRUE, pattern = "*.csv")
+s4_files <- list.files("/home/thermostatic/Desktop/Ratas/datos/Sanas/S4", full.names = TRUE, pattern = "*.csv")
+
+# Read all files from S2 and S5 directories (sick rats)
+s2_files <- list.files("/home/thermostatic/Desktop/Ratas/datos/Síndrome Vestibular/S2", full.names = TRUE, pattern = "*.csv")
+s5_files <- list.files("/home/thermostatic/Desktop/Ratas/datos/Síndrome Vestibular/S5", full.names = TRUE, pattern = "*.csv")
+
+all_files <- c(s3_files, s4_files, s2_files, s5_files)
+
+# Use tryCatch to handle potential errors
+all_data <- tryCatch({
+  rbindlist(lapply(all_files, read_and_preprocess), fill = TRUE)
+}, error = function(e) {
+  print(paste("Error:", e$message))
+  return(NULL)
+})
+
+# Check if data was loaded successfully before proceeding
+if (!is.null(all_data)) {
+  # Calculate velocity and acceleration
+  all_data[, c("delta_t", "Displacement_X", "Displacement_Y", "Displacement_Magnitude",
+               "Velocity_X", "Velocity_Y", "Velocity_Magnitude", 
+               "Acceleration_X", "Acceleration_Y", "Acceleration_Magnitude") := {
+    delta_t <- Time - shift(Time)
+    Displacement_X <- X - shift(X)
+    Displacement_Y <- Y - shift(Y)
+    Displacement_Magnitude <- sqrt(Displacement_X^2 + Displacement_Y^2)
+    Velocity_X <- (X - shift(X)) / delta_t
+    Velocity_Y <- (Y - shift(Y)) / delta_t
+    Velocity_Magnitude <- sqrt(Velocity_X^2 + Velocity_Y^2)
+    Acceleration_X <- (Velocity_X - shift(Velocity_X)) / delta_t
+    Acceleration_Y <- (Velocity_Y - shift(Velocity_Y)) / delta_t
+    Acceleration_Magnitude <- sqrt(Acceleration_X^2 + Acceleration_Y^2)
+    list(delta_t, Velocity_X, Velocity_Y, Velocity_Magnitude, 
+         Acceleration_X, Acceleration_Y, Acceleration_Magnitude)
+  }, by = .(rat, condition, session, health_status)]
+}
+```
+
+```{r}
+# Define the color palette
+color_palette <- c("#c16e6d", "#a1493d", "#1a1a22", "#404064", "#563d5b")
+
+# Function to remove outliers
+remove_outliers <- function(x, k = 1.5) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- k * IQR(x, na.rm = TRUE)
+  y <- x
+  y[x < (qnt[1] - H)] <- NA
+  y[x > (qnt[2] + H)] <- NA
+  return(y)
+}
+```
+
+```{r}
+# Apply remove_outliers to velocity and acceleration data
+all_data[, `:=`(
+  Displacement_Magnitude = remove_outliers(Displacement_Magnitude),
+  Velocity_Magnitude = remove_outliers(Velocity_Magnitude),
+  Acceleration_Magnitude = remove_outliers(Acceleration_Magnitude)
+)]
+```
+
+```{r}
+# Filter out NA values from Velocity_Magnitude, Acceleration_Magnitude, and Displacement_Magnitude
+cleaned_data <- all_data[!is.na(Velocity_Magnitude) & !is.na(Acceleration_Magnitude) & !is.na(Displacement_Magnitude)]
+```
+
+```{r}
+# Function to plot displacement distribution
+plot_displacement_distribution <- function(data) {
+  ggplot(data, aes(x = Displacement_Magnitude, fill = health_status)) +
+    geom_density(alpha = 0.7) +
+    facet_grid(condition ~ ., scales = "free_y") +
+    scale_fill_manual(values = color_palette[c(1, 4)]) +
+    labs(title = "Distribución de magnitudes de los desplazamientos",
+         x = "Magnitud del desplazamiento (cm)",
+         y = "Densidad",
+         fill = "Estado de salud") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold")
+    )
+}
+```
+
+```{r}
+# Function to plot velocity distribution
+plot_velocity_distribution <- function(data) {
+  ggplot(data, aes(x = Velocity_Magnitude, fill = health_status)) +
+    geom_density(alpha = 0.7) +
+    facet_grid(condition ~ ., scales = "free_y") +
+    scale_fill_manual(values = color_palette[c(1, 4)]) +
+    labs(title = "Distribución de magnitudes de las velocidades",
+         x = "Magnitud de la velocidad (cm/s)",
+         y = "Densidad",
+         fill = "Estado de salud") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold")
+    )
+}
+```
+
+```{r}
+# Function to plot acceleration distribution
+plot_acceleration_distribution <- function(data) {
+  ggplot(data, aes(x = Acceleration_Magnitude, fill = health_status)) +
+    geom_density(alpha = 0.7) +
+    facet_grid(condition ~ ., scales = "free_y") +
+    scale_fill_manual(values = color_palette[c(1, 4)]) +
+    labs(title = "Distribución de magnitudes de las aceleraciones",
+         x = "Magnitud de la aceleración (cm/s^2)",
+         y = "Densidad",
+         fill = "Estado de salud") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+      strip.background = element_rect(fill = color_palette[3], color = NA),
+      strip.text = element_text(color = "white", face = "bold")
+    )
+}
+```
+
+
+```{r}
+# Plot displacement distribution
+plot_displacement_distribution(cleaned_data)
+```
+This image shows density distribution plots comparing displacement magnitudes between healthy (Sana) and VS-affected (Enferma) rats under two different conditions: DF (Fixed Distance) and DV (Variable Distance), shown in the top and bottom panels respectively.
+
+The x-axis represents the magnitude of displacement in centimeters (up to about 70cm), while the y-axis shows the density or frequency of these displacements. The plots reveal several interesting patterns:
+
+1. In both DF and DV conditions, there's a pronounced peak in displacement magnitude at very short distances (around 0-5cm), suggesting frequent small movements by both groups.
+
+2. The distributions follow a right-skewed pattern, with frequency decreasing as displacement magnitude increases.
+
+3. There appear to be subtle differences between healthy and VS-affected rats, particularly in the height and shape of the initial peaks.
+
+4. The DF condition (top panel) shows slightly higher density values overall compared to the DV condition (bottom panel), suggesting more consistent movement patterns under fixed distance requirements.
+
+5. Both groups show similar general patterns of movement distribution, though with some variations in the specific details of their distributions.
+
+This visualization effectively captures the quantitative differences in movement patterns between healthy and VS-affected rats under different experimental conditions, providing valuable insights into how vestibular syndrome affects locomotor behavior.
+
+```{r}
+# Plot velocity distribution
+plot_velocity_distribution(cleaned_data)
+```
+This image shows the distribution of velocity magnitudes for both healthy (Sana) and VS-affected (Enferma) rats, again under both Fixed Distance (DF) and Variable Distance (DV) conditions. There are several key observations:
+
+1. The x-axis now shows velocity in cm/s (extending to about 300 cm/s), while the y-axis shows the density of these velocity measurements.
+
+2. Similar to the displacement plot, there are multiple peaks in the velocity distributions, particularly at lower velocities (around 0-50 cm/s), suggesting preferred movement speeds.
+
+3. The healthy rats appear to show more distinct peaks in their velocity distribution, particularly in the DF condition, which might indicate more controlled or structured movement patterns.
+
+4. The distributions are again right-skewed, with most velocities concentrated in the lower ranges and a long tail extending into higher velocities.
+
+5. The DF condition (top panel) shows slightly different velocity patterns compared to the DV condition (bottom panel), with somewhat higher and more distinct peaks.
+
+This visualization complements the previous displacement plot by showing how the rats' movement speeds vary under different conditions. The differences between healthy and VS-affected rats are particularly interesting in terms of their preferred movement velocities and the overall structure of their speed distributions.
+
+The multiple peaks in the velocity distributions might represent different modes of movement (like walking, running, or quick turns), and the differences between healthy and VS-affected rats in these patterns could reflect how vestibular syndrome impacts movement control and speed selection.
+```{r}
+# Plot acceleration distribution
+plot_acceleration_distribution(cleaned_data)
+```
+This acceleration distribution plot is particularly interesting as it reveals some striking patterns:
+
+1. The x-axis shows acceleration in cm/s², ranging from -10 to +10, with 0 at the center, allowing us to see both acceleration and deceleration patterns.
+
+2. The most notable feature is the prominent central peak at 0 acceleration, indicating a strong tendency for steady-state movement (constant velocity) in both groups.
+
+3. The distribution shows clear symmetrical patterns around 0, with multiple distinctive peaks on both positive and negative sides, suggesting systematic patterns of acceleration and deceleration.
+
+4. There are marked differences between DF (top) and DV (bottom) conditions:
+   - The DF condition shows sharper, more defined peaks
+   - The DV condition shows broader, more spread-out distributions
+
+5. Most notably, there are clear differences between healthy (Sana) and VS-affected (Enferma) rats:
+   - Healthy rats show higher, more defined peaks
+   - VS-affected rats show more spread-out distributions with lower peaks
+   - These differences are particularly evident in the secondary peaks on either side of the central peak
+
+This graph effectively captures how vestibular syndrome affects movement control - the less defined peaks in VS-affected rats suggest less precise control over acceleration and deceleration, which is consistent with vestibular system impairment affecting balance and movement coordination. The multiple symmetric peaks might represent characteristic movement patterns or strategies used by the rats during their exploration and task completion.
+
+
+
+
+
