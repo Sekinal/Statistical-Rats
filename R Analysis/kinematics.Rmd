@@ -969,3 +969,31 @@ Key Insights:
 This statistical evidence strongly supports the visual patterns seen in
 the turning angle distributions and adds important nuance about
 directional preferences in different conditions.
+
+# Some concerns
+
+Delving into this analysis has been both enlightening and challenging. As I've progressed through the data, examining the behavior of healthy rats against those with vestibular syndrome (VS) across various conditions, several key aspects have emerged that require a nuanced approach to ensure the robustness and reliability of our findings.
+
+First and foremost, the sheer volume of data—nearly 800,000 samples—presents both opportunities and obstacles. On one hand, large datasets lend themselves to powerful statistical analyses and can reveal subtle patterns that might otherwise go unnoticed. On the other hand, managing and interpreting such extensive data requires careful consideration to avoid misleading conclusions.
+
+One area where this is particularly pertinent is in the preprocessing stage, specifically in handling outliers. Initially, I employed a 1.5 interquartile range (IQR) rule to identify and remove outliers in displacement, velocity, and acceleration magnitudes. While this method is straightforward and widely used, I've begun to question its suitability for movement data, which often exhibit heavy-tailed distributions. In other words, movement data can have more extreme values than would be expected under a normal distribution, and thus, a rigid application of the IQR rule might inappropriately discard valid data points.
+
+To address this, I'm considering adopting more sophisticated outlier detection techniques that are better suited to the characteristics of movement data. For instance, using domain knowledge to define what constitutes an outlier could be more effective. Alternatively, employing robust statistical methods that are less sensitive to outliers, such as median-based approaches or winsorizing extreme values, might offer a more balanced perspective.
+
+Moving on to summarizing the data, while mean, median, standard deviation, and interquartile range provide a solid foundation, they may not capture the full complexity of the datasets, especially given the presence of multiple peaks in the velocity distributions. These multiple peaks could indicate distinct movement modes or behaviors, such as periods of slow exploration versus bursts of rapid movement.
+
+To gain deeper insights into these patterns, I'm exploring techniques like kernel density estimation (KDE) and mixture modeling. KDE can help visualize the distribution of data points and identify areas of high density, which might correspond to preferred movement velocities or displacements. Mixture modeling, on the other hand, could allow us to decompose the data into its constituent subpopulations, potentially revealing different behavioral states or movement strategies employed by the rats.
+
+Another critical aspect is the choice of statistical tests for comparing groups. Several issues arise with using t-tests in our context. First, our data often deviate from normality, which violates one of the key assumptions of t-tests. More crucially, however, is the problem of temporal autocorrelation in our movement data. Successive measurements of velocity, acceleration, and position are not independent of each other – a rat's position at one moment is strongly influenced by its position in the previous moment, and the same applies to its velocity and acceleration. 
+
+This temporal dependence violates a fundamental assumption of the t-test: the independence of observations. When observations are autocorrelated, the effective sample size is smaller than the actual number of data points, leading to artificially small p-values and an increased risk of Type I errors (false positives). In other words, we might conclude there are significant differences between healthy and VS rats when there aren't any. 
+
+To address this issue, several approaches could be considered. One option is to use mixed-effects models that can account for the temporal structure of the data. Another approach would be to subsample the data at intervals large enough to ensure independence between observations, though this would reduce our effective sample size. Alternatively, we could employ time series analysis techniques that explicitly model the autocorrelation structure. 
+
+Moreover, the analysis of turning angles presents a unique challenge due to the circular nature of angular data. Initially, I applied t-tests to compare turning angles between healthy and VS rats, but I'm increasingly aware that this may not be the most appropriate approach. Turning angles are angular data, which have inherent circular properties; for example, 0 degrees and 360 degrees are identical, but a t-test does not account for this circularity.
+
+To handle circular data appropriately, specialized statistical methods are necessary. One such test is the Watson-Williams test, which is designed to compare mean directions between two or more groups while considering the circular nature of the data. Incorporating such tests would enhance the validity of our comparisons and provide more reliable insights into how vestibular syndrome affects turning behaviors.
+
+The position density heatmaps have visually demonstrated differences in spatial distribution between healthy and VS rats, with healthy rats showing more focused hotspots and VS rats exhibiting more diffuse patterns. While these visual comparisons are informative, quantifying these differences would strengthen our analysis. To this end, I'm considering measures such as spatial entropy or fractal dimensions.
+
+Spatial entropy can capture the randomness or disorder in the spatial distribution of movements, with higher entropy indicating more dispersed activity. Fractal dimensions, on the other hand, can quantify the complexity and self-similarity of movement patterns, potentially revealing how efficiently rats explore their environment. By calculating these metrics, we can obtain objective, numerical comparisons that complement the visual insights from the heatmaps.
