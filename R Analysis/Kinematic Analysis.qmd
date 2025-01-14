@@ -1,0 +1,552 @@
+---
+title: "Animal behavior analysis: Comparing healthy and vestibular syndrome rats"
+author: "Irving Ernesto Quezada Ramírez"
+toc: true
+editor: visual
+execute:
+  warning: false
+format:
+  html:
+    code-tools: true
+    self-contained: true
+    df-print: paged
+---
+
+# Background
+
+The study of animal behavior under controlled experimental conditions offers a unique window to explore how physical variables can reveal crucial aspects of adaptation and behavioral phenomena under different conditions. This approach allows us to analyze how biological alterations, such as those of the vestibular system, affect both locomotion dynamics and environmental sensing, as well as behavioral adaptation in static and dynamic environments.
+
+Physical variables, such as displacement velocity, trajectory patterns, and efficiency in performing temporo-spatial learning tasks (i.e., when and where a resource is delivered), offer a precise and quantitative measure of how subjects adapt their behavior under specific biological conditions. This multidimensional approach not only broadens our understanding of the mechanisms underlying behavioral adaptations and phenomena but could also have significant implications for developing therapeutic interventions and improving quality of life in cases of neurological disorders.
+
+In this context, our study explores the use of physical variables to identify distinctive patterns of behavior between healthy subjects and those with vestibular syndrome (VS). This approach provides a more comprehensive view of the complexities in the integration of locomotion and spatio-temporal learning.
+
+## Objective
+
+To compare behavioral dynamics in healthy Wistar rats and rats with vestibular syndrome by analyzing associated physical variables, such as displacement velocity, trajectory patterns, and location density, under reinforcement programs contingent on the organisms' displacement (FD/VD 100cm), using an expanded experimental chamber for water delivery.
+
+# Method
+
+## Subjects
+
+Four 4-5 month old female Wistar rats, experimentally naive, two healthy (H) and two with vestibular syndrome (VS), water-deprived for 23 hours.
+
+## Apparatus
+
+Functional Space Densification Apparatus (FSDA), 100 x 100 x 40 cm with uniform black walls and floor.
+
+## Procedure
+
+Subjects were grouped according to their biological condition: H rats (R1;R2) and VS rats (R3;R4). All subjects were exposed to two phases, presented in random sequence: VD (Variable Distance) and FD (Fixed Distance). In the VD phase, water (3ml, available for 3") was delivered each time the subject met a previously established distance criterion, which varied reaching an average of 100cm at the end of the session. The FD phase was similar, but water was delivered under a fixed criterion every time the subject traveled 100cm. The continuous displacement of the subjects was recorded through the coordinates (X,Y) of the center of mass, at a frequency of 5 Hz.
+
+# The Analysis
+
+## Basic set-up: Loading data
+
+For ease of execution, once we clone the GitHub repository with this code, we have to add the corresponding base folder as the working directory for R to use. This is done in the initial part of the code after the imports, the `setwd()` function. This is an ad-hoc solution and *shouldn't* be used like that for a quarto document, but to not waste any more time on it let's keep it this way.
+
+This will make accessing the data a little bit easier along with letting RStudio know where the project's files are located.
+
+```{r}
+# Load required libraries
+library(tidyverse)
+library(readr)
+
+project_dir <- "C:/Users/irvin/OneDrive/Escritorio/Ratas"
+setwd(project_dir)
+
+# Function to read and preprocess data
+read_and_preprocess <- function(file_path) {
+  # Specify column types explicitly
+  col_types <- cols(
+    Time = col_double(),
+    X = col_double(),
+    Y = col_double(),
+    .default = col_skip()  # Skip all other columns
+  )
+  
+  data <- read_csv(file_path, 
+                   skip = 12, 
+                   col_types = col_types,
+                   show_col_types = FALSE) %>%
+    select(Time, X, Y) %>%
+    mutate(
+      file = basename(file_path),
+      rat = substr(basename(file_path), 1, 2),
+      condition = if_else(str_detect(basename(file_path), "DV"), "DV", "DF"),
+      session = as.numeric(str_extract(basename(file_path), "(?<=s)\\d+")),
+      health_status = if_else(str_detect(file_path, "Síndrome Vestibular"), "Enferma", "Sana")
+    )
+  return(data)
+}
+
+# Get file paths
+s3_files <- list.files("Datos/Sanas/S3", full.names = TRUE, pattern = "*.csv")
+s4_files <- list.files("Datos/Sanas/S4", full.names = TRUE, pattern = "*.csv")
+s2_files <- list.files("Datos/Síndrome Vestibular/S2", full.names = TRUE, pattern = "*.csv")
+s5_files <- list.files("Datos/Síndrome Vestibular/S5", full.names = TRUE, pattern = "*.csv")
+
+all_files <- c(s3_files, s4_files, s2_files, s5_files)
+
+# Read and combine all files
+all_data <- map_df(all_files, ~read_and_preprocess(.))
+```
+
+## EDA: First Exploratory Data Analysis
+
+Before we do any further analysis of this data, we have to take care of the exploratory data analysis. This is, taking care of outliers, NaNs, get a *feel* of how the data is structured and maybe some hints towards what we'll eventually model.
+
+### Summary statistics of the original data
+
+```{r}
+# Load the psych package for detailed summary statistics
+library(psych)
+
+# Select only numeric columns
+numeric_data <- all_data %>% select_if(is.numeric)
+
+# Detailed summary statistics using the psych package
+detailed_summary <- describe(numeric_data)
+detailed_summary
+```
+
+1.  Time:
+
+    -   Mean: 600.70
+
+    -   Range: 0 to 1200
+
+    -   Standard Deviation: 346.30
+
+    -   The symmetric distribution (mean ≈ median) suggests consistent timing across sessions, with no significant skewness.
+
+2.  X and Y Coordinates:
+
+    -   Mean: \~49.7 for both X and Y
+
+    -   Range: 0 to 100
+
+    -   Standard Deviation: \~30 for both coordinates
+
+    -   Coordinates are evenly distributed within the 100x100 experimental chamber, indicating that rats explored the entire space.
+
+3.  Session:
+
+    -   Mean: 20.49
+
+    -   Range: 1 to 40
+
+    -   Standard Deviation: 11.56
+
+    -   The even distribution of sessions (median = 20) suggests that data was collected uniformly across sessions.
+
+4.  Distributions:
+
+    -   Skewness: Close to 0 for all variables, indicating symmetric distributions.
+
+    -   Kurtosis: Slightly negative (\~-1.2), suggesting flatter-than-normal distributions, which is typical for exploratory behavior data.
+
+Sweet! Now let's see if we have any missing data:
+
+```{r}
+# Check for NaNs in the dataset
+nan_summary <- all_data %>%
+  summarise(across(everything(), ~ sum(is.na(.))))
+
+print("Summary of NaNs in the dataset:")
+print(nan_summary)
+```
+
+It looks like we have a clean dataset! There's still the risk of out liers, but at this point I don't think there's a way to identify them. Let's work towards progressing our analysis in the next section. \## EDA: Second Exploratory Data Analysis First, let's obtain the time between measurements, which will help us determine later on other kinematic variables:
+
+```{r}
+# Calculate displacement, velocity, and acceleration
+all_data <- all_data %>%
+  group_by(rat, session, condition) %>%
+  arrange(Time) %>%
+  mutate(
+    # Time difference
+    delta_Time = Time - lag(Time)
+  ) %>%
+  ungroup()
+
+# Remove rows with NA values (first row of each group due to lag)
+all_data <- all_data %>% filter(!is.na(delta_Time))
+```
+
+After we've got our data, we can take the summary statistics once again:
+
+```{r}
+# Select only numeric columns for summary statistics
+numeric_data_processed <- all_data$delta_Time
+
+# Detailed summary statistics using the psych package
+detailed_summary_processed <- describe(numeric_data_processed)
+detailed_summary_processed
+```
+
+By looking at the derived variable we can see that the mean time difference between measurements is of about 0.16 seconds, with a standard deviation of 0.17, and a range up to 14.61 seconds. There's some variability in the sampling rate. There is something alarming, though, we have a kurtosis of up to \~800k, that can't be! If we join this fact along with the min value of 0.16 and the max value of 14.61 then we have found an outlier & even more than that, a measuring error. You can take a look at it yourself here (click on the arrow at the top right once):
+
+```{r}
+all_data %>% arrange(desc(delta_Time))
+```
+
+Here we have only one occurrence of an extremely long period of time, then we have a 2.8 seconds delta and finally a 1.47 delta, with every other delta staying under that.
+
+### Identifying measurement errors with time_delta
+
+Let's make a plot to get a better hang of what's going on:
+
+```{r}
+# Plot histogram of delta_Time
+ggplot(all_data, aes(x = delta_Time)) +
+  geom_histogram(binwidth = 0.01) +
+  labs(title = "Distribution of delta_Time",
+       x = "Time Difference (s)",
+       y = "Frequency") +
+  theme_minimal()
+
+# Zoom in on the majority of the data
+ggplot(all_data, aes(x = delta_Time)) +
+  geom_histogram(binwidth = 0.001) +
+  labs(title = "Distribution of delta_Time (Zoomed In)",
+       x = "Time Difference (s)",
+       y = "Frequency") +
+  xlim(0, 1) +  # Focus on values below 1 second
+  theme_minimal()
+```
+
+Well, that was something to expect! For the most part we have a large concentration around 0.17 just like the summary statistics told us so. The peak is prominent and anything outside of ~0.18 is pretty much nothing. Necessarily, anything over 1 second is a measurement error.
+
+Taking care of this measurement error is a pretty hard thing to do because we have 3D data (taking time into consideration) & about 140 missing data points due to the average of ~-.17 seconds between measurements and an actual time difference of about ~14 seconds. And since every collected data row is essential for the next one, we can't just delete the data row which took 14 seconds to record, as it'll just increase the gap between the previous and the next data row taken by the camera.
+
+For now, I'll ignore it by not doing interpolation, as the behaviour is way too complex to model lightly for such extended periods of time. However, when doing the following analysis, I won't calculate kinematic variables between the faulty rows where the delta_Time is more than 1 second and the previous row.
+
+IMPORTANT NOTE: After checking the interactive table of data, it doesn't skew at all/hurt the analysis the fact that we have those few outliers, and although it isn't healthy per-se to have them in the dataset, we can proceed as normal as if they weren't there.
+
+### Derived kinematic variables: Displacement, velocity & acceleration
+
+Now that we have a more nuanced understanding of the data, its composition & limitations, we should start calculating relevant kinematic variables:
+
+```{r}
+# Calculate kinematic variables (displacement, velocity, acceleration) with components
+all_data <- all_data %>%
+  group_by(rat, session, condition) %>%
+  arrange(Time) %>%
+  mutate(
+    # Displacement components (X and Y)
+    displacement_X = X - lag(X),
+    displacement_Y = Y - lag(Y),
+    # Displacement magnitude
+    displacement_magnitude = sqrt(displacement_X^2 + displacement_Y^2),
+    
+    # Velocity components (X and Y)
+    velocity_X = displacement_X / delta_Time,
+    velocity_Y = displacement_Y / delta_Time,
+    # Velocity magnitude
+    velocity_magnitude = sqrt(velocity_X^2 + velocity_Y^2),
+    
+    # Acceleration components (X and Y)
+    acceleration_X = (velocity_X - lag(velocity_X)) / delta_Time,
+    acceleration_Y = (velocity_Y - lag(velocity_Y)) / delta_Time,
+    # Acceleration magnitude
+    acceleration_magnitude = sqrt(acceleration_X^2 + acceleration_Y^2)
+  ) %>%
+  ungroup()
+
+# Remove rows with NA values (first row of each group due to lag)
+all_data <- all_data %>% filter(!is.na(displacement_magnitude))
+
+# Summary statistics of kinematic variables with components
+kinematic_summary <- all_data %>%
+  select(displacement_magnitude, velocity_magnitude, acceleration_magnitude,
+         displacement_X, displacement_Y, velocity_X, velocity_Y, acceleration_X, acceleration_Y) %>%
+  describe()
+print(kinematic_summary)
+```
+
+The summary statistics of the derived kinematic variables—displacement, velocity, and acceleration—provide valuable insights into the movement patterns of the rats in the study: The summary statistics of the derived kinematic variables—displacement, velocity, and acceleration—provide valuable insights into the movement patterns of the rats in the study. These variables were calculated from the raw position data (X and Y coordinates) and time differences between measurements. Below is a detailed interpretation of the results:
+
+### **Displacement**
+
+-   **Displacement Magnitude**:
+    -   The mean displacement magnitude is **3.17 cm**, with a standard deviation of **4.64 cm**.
+    -   The median displacement magnitude is **0.85 cm**, indicating that most movements are relatively small, but there are occasional larger displacements (up to **95.58 cm**).
+    -   The positive skewness (**2.05**) and high kurtosis (**5.49**) suggest that the distribution is right-skewed, with a few extreme values.
+-   **Displacement Components (X and Y)**:
+    -   Both X and Y displacements have a mean of **0.00 cm**, indicating symmetry in movement along both axes.
+    -   The standard deviations for X and Y displacements are **4.11 cm** and **3.83 cm**, respectively, showing similar variability.
+    -   The skewness for X displacement is **0.00**, while for Y displacement, it is **0.52**, suggesting slightly asymmetric movement in the Y direction.
+
+### **Velocity**
+
+-   **Velocity Magnitude**:
+    -   The mean velocity magnitude is **19.16 cm/s**, with a standard deviation of **28.04 cm/s**.
+    -   The median velocity magnitude is **5.18 cm/s**, indicating that most movements are slow, but there are occasional bursts of high velocity (up to **590.02 cm/s**).
+    -   The positive skewness (**2.05**) and high kurtosis (**5.46**) suggest a right-skewed distribution with extreme values.
+-   **Velocity Components (X and Y)**:
+    -   Both X and Y velocities have a mean of **0.00 cm/s**, indicating balanced movement along both axes.
+    -   The standard deviations for X and Y velocities are **24.84 cm/s** and **23.16 cm/s**, respectively, showing similar variability.
+    -   The skewness for X velocity is **0.00**, while for Y velocity, it is **0.51**, suggesting slightly asymmetric movement in the Y direction.
+
+### **Acceleration**
+
+-   **Acceleration Magnitude**:
+    -   The mean acceleration magnitude is **92.67 cm/s²**, with a standard deviation of **146.03 cm/s²**.
+    -   The median acceleration magnitude is **35.69 cm/s²**, indicating that most accelerations are moderate, but there are occasional extreme values (up to **6502.87 cm/s²**).
+    -   The positive skewness (**4.26**) and extremely high kurtosis (**44.75**) suggest a highly right-skewed distribution with many extreme values.
+-   **Acceleration Components (X and Y)**:
+    -   Both X and Y accelerations have a mean close to **0.00 cm/s²**, indicating balanced acceleration along both axes.
+    -   The standard deviations for X and Y accelerations are **124.51 cm/s²** and **120.05 cm/s²**, respectively, showing similar variability.
+    -   The skewness for X acceleration is **0.01**, while for Y acceleration, it is **0.49**, suggesting slightly asymmetric acceleration in the Y direction.
+
+### **Key Observations**
+
+1.  **Movement Patterns**:
+    -   The rats exhibit small, frequent movements (as indicated by the median displacement and velocity magnitudes) but occasionally make large, rapid movements (as indicated by the maximum values).
+    -   The symmetry in X and Y displacements and velocities suggests balanced exploration of the experimental chamber.
+2.  **Extreme Values**:
+    -   The presence of extreme values in displacement, velocity, and acceleration magnitudes suggests occasional bursts of activity, which could be related to specific behavioral events (e.g., reaching for water or reacting to stimuli).
+3.  **Measurement Errors**:
+    -   The high kurtosis and skewness values, particularly for acceleration, highlight the presence of extreme values that may require further investigation or filtering.
+4.  **Implications for Analysis**:
+    -   The derived kinematic variables provide a robust foundation for comparing movement patterns between healthy and vestibular syndrome rats.
+    -   Future analyses could focus on identifying specific movement patterns (e.g., turning, freezing) and their relationship to the experimental conditions (FD vs. VD).
+
+### **Next Steps**
+
+-   **Filtering Outliers**:
+    -   Consider applying thresholds to filter out extreme values in displacement, velocity, and acceleration that may represent measurement errors or biologically implausible movements.
+-   **Behavioral Segmentation**:
+    -   Segment the data into distinct behavioral states (e.g., resting, exploring, running) based on kinematic variables.
+-   **Group Comparisons**:
+    -   Compare the kinematic variables between healthy and vestibular syndrome rats to identify differences in movement patterns and adaptation strategies.
+-   **Visualization**:
+    -   Create visualizations (e.g., heatmaps, trajectory plots) to explore spatial and temporal patterns in the data.
+
+By leveraging these kinematic variables, we can gain deeper insights into the behavioral dynamics of the rats and how they adapt to the experimental conditions, particularly in the context of vestibular syndrome.
+
+By plotting what we have
+
+```{r}
+ggplot(all_data, aes(x = displacement_magnitude, fill = condition)) +
+  geom_histogram(binwidth = 1, alpha = 0.7) +
+  facet_wrap(~ rat + health_status, scales = "free") +
+  labs(
+    title = "Distribution of Displacement magnitude by Rat and Condition",
+    x = "Displacement (cm)",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+ggplot(all_data, aes(x = velocity_magnitude, fill = condition)) +
+  geom_histogram(binwidth = 5, alpha = 0.7) +
+  facet_wrap(~ rat + health_status, scales = "free") +
+  labs(
+    title = "Distribution of Velocity magnitude by Rat and Condition",
+    x = "Velocity (cm/s)",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+ggplot(all_data, aes(x = acceleration_magnitude, fill = condition)) +
+  geom_histogram(binwidth = 25, alpha = 0.7) +
+  facet_wrap(~ rat + health_status, scales = "free") +
+  labs(
+    title = "Distribution of Acceleration magnitude by Rat and Condition",
+    x = "Acceleration (cm/s²)",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+Having a rat moving at 1 m/s would be insane. Having a rat with an acceleration of 10 m/s^2 would be even crazier, and by looking at the graphs we could use these thresholds to filter out outliers, HOWEVER, it'd be better if we were to use the IQR to get rid of them!:
+
+```{r}
+# Function to filter outliers using IQR
+filter_outliers_iqr <- function(data, variable) {
+  data %>%
+    group_by(condition, health_status) %>%
+    mutate(
+      Q1 = quantile(!!sym(variable), 0.25, na.rm = TRUE),
+      Q3 = quantile(!!sym(variable), 0.75, na.rm = TRUE),
+      IQR = Q3 - Q1,
+      lower_bound = Q1 - 1.5 * IQR,
+      upper_bound = Q3 + 1.5 * IQR
+    ) %>%
+    filter(!!sym(variable) >= lower_bound & !!sym(variable) <= upper_bound) %>%
+    ungroup() %>%
+    select(-Q1, -Q3, -IQR, -lower_bound, -upper_bound)
+}
+
+# Apply IQR filtering to displacement, velocity, and acceleration
+filtered_data <- all_data %>%
+  filter_outliers_iqr("displacement_magnitude") %>%
+  filter_outliers_iqr("velocity_magnitude") %>%
+  filter_outliers_iqr("acceleration_magnitude")
+
+# Check the summary statistics after filtering
+filtered_summary <- filtered_data %>%
+  select(displacement_magnitude, velocity_magnitude, acceleration_magnitude) %>%
+  describe()
+print(filtered_summary)
+```
+
+and to make sure we're looking at how the distributions look like, let's use density graphs:
+
+## Plotting the distributions
+
+```{r}
+ggplot(filtered_data, aes(x = displacement_magnitude, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~ rat + health_status, scales = "free") +
+  labs(
+    title = "Density of Displacement Magnitude by Rat and Condition",
+    x = "Displacement (cm)",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+ggplot(filtered_data, aes(x = velocity_magnitude, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~ rat + health_status, scales = "free") +
+  labs(
+    title = "Density of Velocity Magnitude by Rat and Condition",
+    x = "Velocity (cm/s)",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+ggplot(filtered_data, aes(x = acceleration_magnitude, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~ rat + health_status, scales = "free") +
+  labs(
+    title = "Density of Acceleration Magnitude by Rat and Condition",
+    x = "Acceleration (cm/s²)",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+I'll let you take a look yourself, but there are clear differences between sick rats and healthy rats in every kinematic variable. For sick & healthy rats, whether we have DF or DV it's clear which one is healthy and which one isn't. In particular, for healthy rats we see wave-like distribution graphs with peaks at specific displacements, velocities & accelerations whereas for sick rats we see continuous distributions without additional peaks.
+
+## Statistical analysis
+
+```{r}
+# Load required libraries for statistical analysis
+library(car)         # For Levene's Test
+library(lme4)        # For Linear Mixed-Effects Models
+library(lmerTest)    # For p-values in mixed models
+library(emmeans)     # For post-hoc comparisons
+library(ggpubr)      # For publication-ready plots
+```
+
+### Descriptive statistics
+
+```{r}
+# Summary statistics by health_status and condition
+summary_stats <- filtered_data %>%
+  group_by(health_status, condition) %>%
+  summarise(
+    count = n(),
+    mean_displacement = mean(displacement_magnitude, na.rm = TRUE),
+    sd_displacement = sd(displacement_magnitude, na.rm = TRUE),
+    mean_velocity = mean(velocity_magnitude, na.rm = TRUE),
+    sd_velocity = sd(velocity_magnitude, na.rm = TRUE),
+    mean_acceleration = mean(acceleration_magnitude, na.rm = TRUE),
+    sd_acceleration = sd(acceleration_magnitude, na.rm = TRUE)
+  )
+
+print(summary_stats)
+```
+
+**Interpretation of Summary Statistics:**
+
+-   **Displacement Magnitude:**
+    -   **Sick Rats:** Exhibited a mean displacement of **3.83 cm (SD = 4.32 cm)** under the FD condition and **5.17 cm (SD = 5.15 cm)** under the VD condition. This indicates more extensive movement within the experimental chamber compared to healthy rats.
+    -   **Healthy Rats:** Showed significantly lower mean displacements of **0.27 cm (SD = 0.32 cm)** in the FD condition and **0.37 cm (SD = 0.39 cm)** in the VD condition. The minimal displacement suggests limited movement, likely due to the absence of vestibular dysfunction.
+-   **Velocity Magnitude:**
+    -   **Sick Rats:** Demonstrated higher mean velocities of **23.13 cm/s (SD = 26.09 cm/s)** in the FD condition and **31.32 cm/s (SD = 31.16 cm/s)** in the VD condition. These elevated velocities reflect more vigorous and sustained movements.
+    -   **Healthy Rats:** Recorded much lower mean velocities of **1.61 cm/s (SD = 1.96 cm/s)** in the FD condition and **2.27 cm/s (SD = 2.38 cm/s)** in the VD condition. The reduced velocities indicate slower movement, consistent with typical healthy behavior.
+-   **Acceleration Magnitude:**
+    -   **Sick Rats:** Showed higher mean accelerations of **99.92 cm/s² (SD = 98.85 cm/s²)** in the FD condition and **125.05 cm/s² (SD = 108.58 cm/s²)** in the VD condition. These values suggest more dynamic and responsive locomotor behavior.
+    -   **Healthy Rats:** Exhibited lower mean accelerations of **11.23 cm/s² (SD = 10.19 cm/s²)** in the FD condition and **16.76 cm/s² (SD = 14.18 cm/s²)** in the VD condition. The reduced accelerations imply less dynamic movement, aligning with the expected behavior of healthy subjects.
+
+**Key Observations:**
+
+1.  **Health Status Differences:**
+    -   **Sick Rats:** Consistently displayed higher mean values across all kinematic variables compared to healthy rats. This suggests that vestibular dysfunction may lead to compensatory behaviors characterized by increased movement, velocity, and acceleration.
+    -   **Healthy Rats:** Showed significantly lower movement metrics, indicating more stable and controlled locomotion without the need for compensatory adjustments.
+2.  **Experimental Condition Effects:**
+    -   **Fixed Distance (FD) vs. Variable Distance (VD):** Both health statuses exhibited higher mean values in the VD condition compared to the FD condition. This indicates that variable reinforcement criteria may influence the locomotor behavior of the rats, potentially due to the increased complexity or unpredictability of the task.
+3.  **Variability Within Groups:**
+    -   **Sick Rats:** Displayed greater variability (higher standard deviations) in all kinematic variables, suggesting more inconsistent movement patterns.
+    -   **Healthy Rats:** Had lower variability, reflecting more uniform and predictable behavior.
+
+I already tried doing LMMs & log transformations to no avail, if you were wondering. So it's time to search an alternative approach in hopes of finding statistical proof of the differences between healthy & sick rats (besides the graphs).
+
+# Additional analysis I had forgotten about
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+library(viridis)
+library(gridExtra)
+
+# Ensure 'filtered_data' has 'session_group' as defined earlier
+filtered_data <- filtered_data %>%
+  mutate(session_group = ceiling(session / 10))  # Changed from /5 to /10
+
+# Optional: Label session groups for better readability
+filtered_data <- filtered_data %>%
+  mutate(session_group_label = case_when(
+    session_group == 1 ~ "1-10",
+    session_group == 2 ~ "11-20",
+    session_group == 3 ~ "21-30",
+    session_group == 4 ~ "31-40",
+    TRUE ~ paste0((session_group - 1) * 10 + 1, "-", session_group * 10)
+  ))
+
+# Define the order of session groups
+filtered_data$session_group_label <- factor(filtered_data$session_group_label, 
+                                           levels = c("1-10", "11-20", "21-30", "31-40"))
+
+# Create the heatmap using facet_grid
+heatmap_plot <- ggplot(filtered_data, aes(x = X, y = Y)) +
+  stat_density2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
+  scale_fill_viridis(name = "Density") +
+  coord_fixed() +
+  facet_grid(rat ~ session_group_label) +  # Updated facets to reflect new labels
+  labs(
+    title = "Heatmaps of Rat Trajectories by Rat and Session Group",
+    subtitle = "Grouped by 10 Sessions Each",
+    x = "X Coordinate (cm)",
+    y = "Y Coordinate (cm)"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5)
+  )
+
+# Display the heatmap grid
+print(heatmap_plot)
+```
+
+From this plot we can see that for healthy rats (S3 & S4) they seem to optimize their movement patterns by staying near the center forming a ring-like shape. Meanwhile, for the DF methodology, the sick rats try to optimize, althouugh not as well and for the DV methodology there doesn't appear to be any succesful optimization by the rat.
