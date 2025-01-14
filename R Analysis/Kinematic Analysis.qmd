@@ -550,3 +550,10 @@ print(heatmap_plot)
 ```
 
 From this plot we can see that for healthy rats (S3 & S4) they seem to optimize their movement patterns by staying near the center forming a ring-like shape. Meanwhile, for the DF methodology, the sick rats try to optimize, althouugh not as well and for the DV methodology there doesn't appear to be any succesful optimization by the rat.
+
+# Exporting data
+```{r}
+# Export filtered_data as a CSV file
+write.csv(filtered_data, file = "filtered_data.csv", row.names = FALSE)
+```
+
